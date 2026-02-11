@@ -1,0 +1,354 @@
+#!/usr/bin/env python3
+"""
+Bot de Telegram para Sistema Weinstein
+Envía alertas de señales BUY/SELL y responde a comandos
+
+Uso:
+    python scripts/telegram_bot.py --notify    # Enviar notificaciones
+    python scripts/telegram_bot.py --listen    # Escuchar comandos (opcional)
+"""
+import sys
+sys.path.insert(0, '/home/stanweinstein')
+
+import requests
+import argparse
+from datetime import datetime, timedelta
+from app.database import SessionLocal, Stock, Signal, WeeklyData
+from app.signals import SignalGenerator
+from sqlalchemy import and_, func
+import logging
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/stanweinstein/telegram.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# CONFIGURACIÓN TELEGRAM
+TELEGRAM_TOKEN = "INSERT TELEGRAM TOKEN HERE"
+TELEGRAM_CHAT_ID = "INSERT CHAT ID HERE"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
+
+class TelegramBot:
+    """Bot de Telegram para notificaciones Weinstein"""
+    
+    def __init__(self, token, chat_id):
+        self.token = token
+        self.chat_id = chat_id
+        self.api_url = f"https://api.telegram.org/bot{token}"
+        self.db = SessionLocal()
+    
+    def send_message(self, text: str, parse_mode: str = 'HTML'):
+        """Enviar mensaje a Telegram"""
+        url = f"{self.api_url}/sendMessage"
+        
+        data = {
+            'chat_id': self.chat_id,
+            'text': text,
+            'parse_mode': parse_mode
+        }
+        
+        try:
+            response = requests.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            logger.info("✓ Mensaje enviado a Telegram")
+            return True
+        except Exception as e:
+            logger.error(f"✗ Error enviando mensaje: {e}")
+            return False
+    
+    def get_unnotified_signals(self):
+        """Obtener señales que no han sido notificadas"""
+        generator = SignalGenerator(self.db)
+        signals = generator.get_unnotified_signals()
+        return signals
+    
+    def mark_signals_as_notified(self, signal_ids: list):
+        """Marcar señales como notificadas"""
+        generator = SignalGenerator(self.db)
+        return generator.mark_signals_as_notified(signal_ids)
+    
+    def get_stocks_in_stage(self, stage: int):
+        """Obtener acciones en una etapa específica"""
+        # Subconsulta para obtener la semana más reciente de cada acción
+        subq = self.db.query(
+            WeeklyData.stock_id,
+            func.max(WeeklyData.week_end_date).label('max_date')
+        ).group_by(WeeklyData.stock_id).subquery()
+        
+        # Obtener acciones en la etapa solicitada
+        results = self.db.query(Stock, WeeklyData).join(
+            WeeklyData, Stock.id == WeeklyData.stock_id
+        ).join(
+            subq,
+            and_(
+                WeeklyData.stock_id == subq.c.stock_id,
+                WeeklyData.week_end_date == subq.c.max_date
+            )
+        ).filter(
+            WeeklyData.stage == stage,
+            Stock.active == True
+        ).all()
+        
+        stocks = []
+        for stock, weekly in results:
+            stocks.append({
+                'ticker': stock.ticker,
+                'name': stock.name,
+                'close': float(weekly.close),
+                'ma30': float(weekly.ma30) if weekly.ma30 else None,
+                'slope': float(weekly.ma30_slope) if weekly.ma30_slope else None
+            })
+        
+        return stocks
+    
+    def format_signal_message(self, signals: list) -> str:
+        """Formatear mensaje con señales"""
+        
+        if not signals:
+            return None
+        
+        # Separar por tipo
+        buy_signals = [s for s in signals if s['signal_type'] == 'BUY']
+        sell_signals = [s for s in signals if s['signal_type'] == 'SELL']
+        
+        # Fecha
+        today = datetime.now().strftime('%d %b %Y')
+        
+        message = f"🔔 <b>SEÑALES NUEVAS - {today}</b>\n\n"
+        
+        # Señales BUY
+        if buy_signals:
+            message += f"🟢 <b>BUY ({len(buy_signals)} señales)</b>\n\n"
+            
+            for idx, signal in enumerate(buy_signals, 1):
+                ticker = signal['ticker']
+                name = signal['name']
+                price = signal['price']
+                transition = f"Etapa {signal['stage_from']} → {signal['stage_to']}"
+                
+                message += f"{idx}️⃣ <b>{ticker}</b>\n"
+                message += f"   {name}\n"
+                message += f"   {transition}\n"
+                message += f"   Precio: ${price:.2f}\n"
+                
+                if signal['ma30']:
+                    ma30 = signal['ma30']
+                    diff_pct = ((price - ma30) / ma30) * 100
+                    message += f"   MA30: ${ma30:.2f} ({diff_pct:+.1f}%)\n"
+                
+                message += "\n"
+        
+        # Señales SELL
+        if sell_signals:
+            message += f"🔴 <b>SELL ({len(sell_signals)} señales)</b>\n\n"
+            
+            for idx, signal in enumerate(sell_signals, 1):
+                ticker = signal['ticker']
+                name = signal['name']
+                price = signal['price']
+                transition = f"Etapa {signal['stage_from']} → {signal['stage_to']}"
+                
+                message += f"{idx}️⃣ <b>{ticker}</b>\n"
+                message += f"   {name}\n"
+                message += f"   {transition}\n"
+                message += f"   Precio: ${price:.2f}\n\n"
+        
+        message += "⚠️ <i>Operar el lunes en apertura</i>"
+        
+        return message
+    
+    def format_stage2_message(self, limit: int = 15) -> str:
+        """Formatear mensaje con acciones en Etapa 2"""
+        
+        stocks = self.get_stocks_in_stage(2)
+        
+        if not stocks:
+            return "📈 No hay acciones en Etapa 2 actualmente"
+        
+        # Ordenar por pendiente (las más fuertes primero)
+        stocks_sorted = sorted(stocks, key=lambda x: x['slope'] or 0, reverse=True)
+        
+        message = f"📈 <b>ACCIONES EN ETAPA 2 (ALCISTA)</b>\n\n"
+        message += f"Total: {len(stocks)}\n"
+        message += f"Mostrando top {min(limit, len(stocks))}:\n\n"
+        
+        for idx, stock in enumerate(stocks_sorted[:limit], 1):
+            ticker = stock['ticker']
+            price = stock['close']
+            ma30 = stock['ma30']
+            slope = stock['slope']
+            
+            slope_pct = slope * 100 if slope else 0
+            
+            message += f"{idx:2d}. <b>{ticker}</b> ${price:.2f}\n"
+            message += f"    Pendiente: {slope_pct:+.2f}%\n"
+        
+        return message
+    
+    def send_weekly_alert(self):
+        """
+        Enviar alerta semanal con señales nuevas
+        Se ejecuta sábados a las 08:00
+        """
+        logger.info("=" * 60)
+        logger.info("ENVIANDO ALERTA SEMANAL A TELEGRAM")
+        logger.info("=" * 60)
+        
+        # Obtener señales no notificadas
+        signals = self.get_unnotified_signals()
+        
+        if not signals:
+            logger.info("No hay señales nuevas para notificar")
+            
+            # Enviar mensaje indicando que no hay señales
+            stage2_count = len(self.get_stocks_in_stage(2))
+            message = f"✅ <b>Sin señales nuevas esta semana</b>\n\n"
+            message += f"📊 Acciones en Etapa 2: {stage2_count}\n"
+            message += f"\nUsa /etapa2 para ver el detalle"
+            
+            self.send_message(message)
+            return
+        
+        logger.info(f"Señales nuevas encontradas: {len(signals)}")
+        
+        # Formatear y enviar mensaje
+        message = self.format_signal_message(signals)
+        
+        if message:
+            success = self.send_message(message)
+            
+            if success:
+                # Marcar señales como notificadas
+                signal_ids = [s['id'] for s in signals]
+                marked = self.mark_signals_as_notified(signal_ids)
+                logger.info(f"✓ {marked} señales marcadas como notificadas")
+            else:
+                logger.error("✗ Error enviando mensaje, señales NO marcadas")
+    
+    def handle_command_signals(self):
+        """Responder al comando /señales"""
+        
+        # Obtener señales de los últimos 7 días
+        cutoff_date = datetime.now().date() - timedelta(days=7)
+        
+        signals = self.db.query(Signal, Stock).join(
+            Stock, Signal.stock_id == Stock.id
+        ).filter(
+            Signal.signal_date >= cutoff_date
+        ).order_by(Signal.signal_date.desc()).all()
+        
+        if not signals:
+            return "📭 No hay señales en los últimos 7 días"
+        
+        message = f"🔔 <b>SEÑALES ÚLTIMOS 7 DÍAS</b>\n\n"
+        
+        for signal, stock in signals:
+            date_str = signal.signal_date.strftime('%d/%m')
+            type_emoji = "🟢" if signal.signal_type == 'BUY' else "🔴"
+            
+            message += f"{type_emoji} <b>{stock.ticker}</b> - {date_str}\n"
+            message += f"   {signal.signal_type}: Etapa {signal.stage_from} → {signal.stage_to}\n"
+            message += f"   ${signal.price:.2f}\n\n"
+        
+        return message
+    
+    def handle_command_stage2(self):
+        """Responder al comando /etapa2"""
+        return self.format_stage2_message(limit=15)
+    
+    def handle_command_search(self, ticker: str):
+        """Responder al comando /buscar TICKER"""
+        
+        ticker = ticker.upper().strip()
+        
+        # Buscar acción
+        stock = self.db.query(Stock).filter(Stock.ticker == ticker).first()
+        
+        if not stock:
+            return f"❌ No se encontró <b>{ticker}</b>"
+        
+        # Obtener última semana
+        latest_week = self.db.query(WeeklyData).filter(
+            WeeklyData.stock_id == stock.id
+        ).order_by(WeeklyData.week_end_date.desc()).first()
+        
+        if not latest_week:
+            return f"❌ <b>{ticker}</b> sin datos semanales"
+        
+        # Formatear respuesta
+        message = f"📊 <b>{stock.ticker}</b> - {stock.name}\n\n"
+        message += f"<b>Etapa actual:</b> {latest_week.stage}\n"
+        message += f"<b>Precio:</b> ${float(latest_week.close):.2f}\n"
+        
+        if latest_week.ma30:
+            ma30 = float(latest_week.ma30)
+            diff_pct = ((float(latest_week.close) - ma30) / ma30) * 100
+            message += f"<b>MA30:</b> ${ma30:.2f} ({diff_pct:+.1f}%)\n"
+        
+        if latest_week.ma30_slope:
+            slope_pct = float(latest_week.ma30_slope) * 100
+            message += f"<b>Pendiente:</b> {slope_pct:+.2f}%\n"
+        
+        message += f"\n<i>Actualizado: {latest_week.week_end_date}</i>"
+        
+        return message
+    
+    def close(self):
+        """Cerrar conexión a BD"""
+        self.db.close()
+
+
+def main():
+    """Función principal"""
+    
+    parser = argparse.ArgumentParser(description='Bot de Telegram Weinstein')
+    parser.add_argument('--notify', action='store_true', help='Enviar notificación semanal')
+    parser.add_argument('--test', action='store_true', help='Probar envío de mensaje')
+    
+    args = parser.parse_args()
+    
+    logger.info("=" * 60)
+    logger.info("TELEGRAM BOT - Sistema Weinstein")
+    logger.info("=" * 60)
+    
+    bot = TelegramBot(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
+    
+    try:
+        if args.notify:
+            # Enviar alerta semanal
+            bot.send_weekly_alert()
+        
+        elif args.test:
+            # Mensaje de prueba
+            test_msg = "🤖 <b>Test Sistema Weinstein</b>\n\n"
+            test_msg += f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n"
+            test_msg += "✅ Bot funcionando correctamente"
+            
+            bot.send_message(test_msg)
+            logger.info("Mensaje de prueba enviado")
+        
+        else:
+            logger.error("Debes especificar --notify o --test")
+            sys.exit(1)
+    
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        bot.close()
+    
+    logger.info("✓ Proceso completado")
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

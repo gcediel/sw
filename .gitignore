@@ -11,6 +11,7 @@ ENV/
 
 # Configuración sensible
 app/config.py
+scripts/telegram_bot.py
 
 # Logs
 *.log

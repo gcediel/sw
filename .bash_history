@@ -40,3 +40,4 @@ EOF
 
 crontab -l
 crontab -e
+crontab -l
