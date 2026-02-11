@@ -1,0 +1,568 @@
+IBEX 35 (Índice);^IBEX;Desconocido
+ACS;ACS.MC;España
+Acerinox;ACX.MC;España
+Aena;AENA.MC;España
+Amadeus IT Group;AMS.MC;España
+Acciona;ANA.MC;España
+Acciona Energía;ANE.MC;España
+BBVA;BBVA.MC;España
+Bankinter;BKT.MC;España
+CaixaBank;CABK.MC;España
+Cellnex Telecom;CLNX.MC;España
+Inmobiliaria Colonial;COL.MC;España
+Endesa;ELE.MC;España
+Enagás;ENG.MC;España
+Fluidra;FDR.MC;España
+Ferrovial;FER.MC;España
+Grifols;GRF.MC;España
+International Airlines Group;IAG.MC;España
+Iberdrola;IBE.MC;España
+Indra;IDR.MC;España
+Inditex;ITX.MC;España
+Logista;LOG.MC;España
+Mapfre;MAP.MC;España
+Meliá Hotels International;MEL.MC;España
+Merlin Properties;MRL.MC;España
+ArcelorMittal;MTS.MC;España
+Naturgy;NTGY.MC;España
+Redeia Corporación;RED.MC;España
+Repsol;REP.MC;España
+Laboratorios Rovi;ROVI.MC;España
+Banco Sabadell;SAB.MC;España
+Banco Santander;SAN.MC;España
+Sacyr;SCYR.MC;España
+Solaria Energía y Medio Ambiente;SLR.MC;España
+Telefónica;TEF.MC;España
+Unicaja Banco;UNI.MC;España
+S&P 500;^GSPC;Desconocido
+Apple Inc.;AAPL;Estados Unidos
+AbbVie Inc.;ABBV;Estados Unidos
+Abbott Laboratories;ABT;Estados Unidos
+Accenture plc;ACN;Estados Unidos
+Amgen Inc.;AMGN;Estados Unidos
+Amazon.com Inc.;AMZN;Estados Unidos
+Boeing Co.;BA;Estados Unidos
+Bristol-Myers Squibb Co.;BMY;Estados Unidos
+Berkshire Hathaway Inc. (Class B);BRK-B;Desconocido
+Citigroup Inc.;C;Estados Unidos
+Comcast Corp.;CMCSA;Estados Unidos
+Salesforce.com Inc.;CRM;Estados Unidos
+Cisco Systems Inc.;CSCO;Estados Unidos
+Chevron Corp.;CVX;Estados Unidos
+Danaher Corp.;DHR;Estados Unidos
+Walt Disney Co.;DIS;Estados Unidos
+Alphabet Inc. (Class C);GOOG;Estados Unidos
+Alphabet Inc. (Class A);GOOGL;Estados Unidos
+Home Depot Inc.;HD;Estados Unidos
+Honeywell International Inc.;HON;Estados Unidos
+Intel Corp.;INTC;Estados Unidos
+Johnson & Johnson;JNJ;Estados Unidos
+JPMorgan Chase & Co.;JPM;Estados Unidos
+Coca-Cola Co.;KO;Estados Unidos
+Eli Lilly and Co.;LLY;Estados Unidos
+Mastercard Inc.;MA;Estados Unidos
+McDonald's Corp.;MCD;Estados Unidos
+Medtronic plc;MDT;Estados Unidos
+Meta Platforms Inc.;META;Estados Unidos
+Merck & Co. Inc.;MRK;Estados Unidos
+Microsoft Corp.;MSFT;Estados Unidos
+Netflix Inc.;NFLX;Estados Unidos
+Nike Inc.;NKE;Estados Unidos
+NVIDIA Corp.;NVDA;Estados Unidos
+Oracle Corp.;ORCL;Estados Unidos
+Pfizer Inc.;PFE;Estados Unidos
+Procter & Gamble Co.;PG;Estados Unidos
+Philip Morris International Inc.;PM;Estados Unidos
+QUALCOMM Inc.;QCOM;Estados Unidos
+Thermo Fisher Scientific Inc.;TMO;Estados Unidos
+Texas Instruments Inc.;TXN;Estados Unidos
+UnitedHealth Group Inc.;UNH;Estados Unidos
+Union Pacific Corp.;UNP;Estados Unidos
+United Parcel Service Inc.;UPS;Estados Unidos
+Visa Inc.;V;Estados Unidos
+Verizon Communications Inc.;VZ;Estados Unidos
+Wells Fargo & Co.;WFC;Estados Unidos
+Walmart Inc.;WMT;Estados Unidos
+Exxon Mobil Corp.;XOM;Estados Unidos
+3M;MMM;Estados Unidos
+A. O. Smith;AOS;Estados Unidos
+Adobe Inc.;ADBE;Estados Unidos
+Advanced Micro Devices;AMD;Estados Unidos
+AES Corporation;AES;Estados Unidos
+Aflac;AFL;Estados Unidos
+Agilent Technologies;A;Estados Unidos
+Air Products;APD;Estados Unidos
+Airbnb;ABNB;Estados Unidos
+Akamai Technologies;AKAM;Estados Unidos
+Albemarle Corporation;ALB;Estados Unidos
+Alexandria Real Estate Equities;ARE;Estados Unidos
+Align Technology;ALGN;Estados Unidos
+Allegion;ALLE;Estados Unidos
+Alliant Energy;LNT;Estados Unidos
+Allstate;ALL;Estados Unidos
+Altria;MO;Estados Unidos
+Amcor;AMCR;Estados Unidos
+Ameren;AEE;Estados Unidos
+American Electric Power;AEP;Estados Unidos
+American Express;AXP;Estados Unidos
+American International Group;AIG;Estados Unidos
+American Tower;AMT;Estados Unidos
+American Water Works;AWK;Estados Unidos
+Ameriprise Financial;AMP;Estados Unidos
+Ametek;AME;Estados Unidos
+Amphenol;APH;Estados Unidos
+Analog Devices;ADI;Estados Unidos
+Ansys;ANSS;Estados Unidos
+Aon;AON;Estados Unidos
+APA Corporation;APA;Estados Unidos
+Apollo Global Management;APO;Estados Unidos
+Applied Materials;AMAT;Estados Unidos
+Aptiv;APTV;Estados Unidos
+Arch Capital Group;ACGL;Estados Unidos
+Archer Daniels Midland;ADM;Estados Unidos
+Arista Networks;ANET;Estados Unidos
+Arthur J. Gallagher & Co.;AJG;Estados Unidos
+Assurant;AIZ;Estados Unidos
+AT&T;T;Estados Unidos
+Atmos Energy;ATO;Estados Unidos
+Autodesk;ADSK;Estados Unidos
+Automatic Data Processing;ADP;Estados Unidos
+AutoZone;AZO;Estados Unidos
+AvalonBay Communities;AVB;Estados Unidos
+Avery Dennison;AVY;Estados Unidos
+Axon Enterprise;AXON;Estados Unidos
+Baker Hughes;BKR;Estados Unidos
+Ball Corporation;BALL;Estados Unidos
+Bank of America;BAC;Estados Unidos
+Baxter International;BAX;Estados Unidos
+Becton Dickinson;BDX;Estados Unidos
+Berkshire Hathaway;BRK.B;Estados Unidos
+Best Buy;BBY;Estados Unidos
+Bio-Techne;TECH;Estados Unidos
+Biogen;BIIB;Estados Unidos
+BlackRock;BLK;Estados Unidos
+Blackstone Inc.;BX;Estados Unidos
+BNY Mellon;BK;Estados Unidos
+Booking Holdings;BKNG;Estados Unidos
+BorgWarner;BWA;Estados Unidos
+Boston Scientific;BSX;Estados Unidos
+Broadcom;AVGO;Estados Unidos
+Broadridge Financial Solutions;BR;Estados Unidos
+Brown & Brown;BRO;Estados Unidos
+Brown–Forman;BF.B;Estados Unidos
+Builders FirstSource;BLDR;Estados Unidos
+Bunge Global;BG;Estados Unidos
+BXP, Inc.;BXP;Estados Unidos
+C.H. Robinson;CHRW;Estados Unidos
+Cadence Design Systems;CDNS;Estados Unidos
+Caesars Entertainment;CZR;Estados Unidos
+Camden Property Trust;CPT;Estados Unidos
+Campbell Soup Company;CPB;Estados Unidos
+Capital One;COF;Estados Unidos
+Cardinal Health;CAH;Estados Unidos
+CarMax;KMX;Estados Unidos
+Carnival;CCL;Estados Unidos
+Carrier Global;CARR;Estados Unidos
+Caterpillar Inc.;CAT;Estados Unidos
+Cboe Global Markets;CBOE;Estados Unidos
+CBRE Group;CBRE;Estados Unidos
+CDW;CDW;Estados Unidos
+Celanese;CE;Estados Unidos
+Cencora;COR;Estados Unidos
+Centene Corporation;CNC;Estados Unidos
+CenterPoint Energy;CNP;Estados Unidos
+CF Industries;CF;Estados Unidos
+Charles River Laboratories;CRL;Estados Unidos
+Charles Schwab Corporation;SCHW;Estados Unidos
+Charter Communications;CHTR;Estados Unidos
+Chipotle Mexican Grill;CMG;Estados Unidos
+Chubb Limited;CB;Estados Unidos
+Church & Dwight;CHD;Estados Unidos
+Cigna;CI;Estados Unidos
+Cincinnati Financial;CINF;Estados Unidos
+Cintas;CTAS;Estados Unidos
+Citizens Financial Group;CFG;Estados Unidos
+Clorox;CLX;Estados Unidos
+CME Group;CME;Estados Unidos
+CMS Energy;CMS;Estados Unidos
+Cognizant;CTSH;Estados Unidos
+Colgate-Palmolive;CL;Estados Unidos
+Conagra Brands;CAG;Estados Unidos
+ConocoPhillips;COP;Estados Unidos
+Consolidated Edison;ED;Estados Unidos
+Constellation Brands;STZ;Estados Unidos
+Constellation Energy;CEG;Estados Unidos
+Cooper Companies (The);COO;Estados Unidos
+Copart;CPRT;Estados Unidos
+Corning Inc.;GLW;Estados Unidos
+Corpay;CPAY;Estados Unidos
+Corteva;CTVA;Estados Unidos
+CoStar Group;CSGP;Estados Unidos
+Costco;COST;Estados Unidos
+Coterra;CTRA;Estados Unidos
+CrowdStrike;CRWD;Estados Unidos
+Crown Castle;CCI;Estados Unidos
+CSX Corporation;CSX;Estados Unidos
+Cummins;CMI;Estados Unidos
+CVS Health;CVS;Estados Unidos
+Darden Restaurants;DRI;Estados Unidos
+DaVita;DVA;Estados Unidos
+Dayforce;DAY;Estados Unidos
+Deckers Brands;DECK;Estados Unidos
+Deere & Company;DE;Estados Unidos
+Dell Technologies;DELL;Estados Unidos
+Delta Air Lines;DAL;Estados Unidos
+Devon Energy;DVN;Estados Unidos
+Dexcom;DXCM;Estados Unidos
+Diamondback Energy;FANG;Estados Unidos
+Digital Realty;DLR;Estados Unidos
+Discover Financial;DFS;Estados Unidos
+Dollar General;DG;Estados Unidos
+Dollar Tree;DLTR;Estados Unidos
+Dominion Energy;D;Estados Unidos
+Domino's;DPZ;Estados Unidos
+Dover Corporation;DOV;Estados Unidos
+Dow Inc.;DOW;Estados Unidos
+D. R. Horton;DHI;Estados Unidos
+DTE Energy;DTE;Estados Unidos
+Duke Energy;DUK;Estados Unidos
+DuPont;DD;Estados Unidos
+Eastman Chemical Company;EMN;Estados Unidos
+Eaton Corporation;ETN;Estados Unidos
+eBay;EBAY;Estados Unidos
+Ecolab;ECL;Estados Unidos
+Edison International;EIX;Estados Unidos
+Edwards Lifesciences;EW;Estados Unidos
+Electronic Arts;EA;Estados Unidos
+Elevance Health;ELV;Estados Unidos
+Emerson Electric;EMR;Estados Unidos
+Enphase Energy;ENPH;Estados Unidos
+Entergy;ETR;Estados Unidos
+EOG Resources;EOG;Estados Unidos
+EPAM Systems;EPAM;Estados Unidos
+EQT Corporation;EQT;Estados Unidos
+Equifax;EFX;Estados Unidos
+Equinix;EQIX;Estados Unidos
+Equity Residential;EQR;Estados Unidos
+Erie Indemnity;ERIE;Estados Unidos
+Essex Property Trust;ESS;Estados Unidos
+Estée Lauder Companies (The);EL;Estados Unidos
+Everest Group;EG;Estados Unidos
+Evergy;EVRG;Estados Unidos
+Eversource Energy;ES;Estados Unidos
+Exelon;EXC;Estados Unidos
+Expedia Group;EXPE;Estados Unidos
+Expeditors International;EXPD;Estados Unidos
+Extra Space Storage;EXR;Estados Unidos
+F5, Inc.;FFIV;Estados Unidos
+FactSet;FDS;Estados Unidos
+Fair Isaac;FICO;Estados Unidos
+Fastenal;FAST;Estados Unidos
+Federal Realty Investment Trust;FRT;Estados Unidos
+FedEx;FDX;Estados Unidos
+Fidelity National Information Services;FIS;Estados Unidos
+Fifth Third Bancorp;FITB;Estados Unidos
+First Solar;FSLR;Estados Unidos
+FirstEnergy;FE;Estados Unidos
+Fiserv;FI;Estados Unidos
+FMC Corporation;FMC;Estados Unidos
+Ford Motor Company;F;Estados Unidos
+Fortinet;FTNT;Estados Unidos
+Fortive;FTV;Estados Unidos
+Fox Corporation (Class A);FOXA;Estados Unidos
+Fox Corporation (Class B);FOX;Estados Unidos
+Franklin Resources;BEN;Estados Unidos
+Freeport-McMoRan;FCX;Estados Unidos
+Garmin;GRMN;Estados Unidos
+Gartner;IT;Estados Unidos
+GE Aerospace;GE;Estados Unidos
+GE HealthCare;GEHC;Estados Unidos
+GE Vernova;GEV;Estados Unidos
+Gen Digital;GEN;Estados Unidos
+Generac;GNRC;Estados Unidos
+General Dynamics;GD;Estados Unidos
+General Mills;GIS;Estados Unidos
+General Motors;GM;Estados Unidos
+Genuine Parts Company;GPC;Estados Unidos
+Gilead Sciences;GILD;Estados Unidos
+Global Payments;GPN;Estados Unidos
+Globe Life;GL;Estados Unidos
+GoDaddy;GDDY;Estados Unidos
+Goldman Sachs;GS;Estados Unidos
+Halliburton;HAL;Estados Unidos
+Hartford (The);HIG;Estados Unidos
+Hasbro;HAS;Estados Unidos
+HCA Healthcare;HCA;Estados Unidos
+Healthpeak Properties;DOC;Estados Unidos
+Henry Schein;HSIC;Estados Unidos
+Hershey Company (The);HSY;Estados Unidos
+Hess Corporation;HES;Estados Unidos
+Hewlett Packard Enterprise;HPE;Estados Unidos
+Hilton Worldwide;HLT;Estados Unidos
+Hologic;HOLX;Estados Unidos
+Hormel Foods;HRL;Estados Unidos
+Host Hotels & Resorts;HST;Estados Unidos
+Howmet Aerospace;HWM;Estados Unidos
+HP Inc.;HPQ;Estados Unidos
+Hubbell Incorporated;HUBB;Estados Unidos
+Humana;HUM;Estados Unidos
+Huntington Bancshares;HBAN;Estados Unidos
+Huntington Ingalls Industries;HII;Estados Unidos
+IBM;IBM;Estados Unidos
+IDEX Corporation;IEX;Estados Unidos
+Idexx Laboratories;IDXX;Estados Unidos
+Illinois Tool Works;ITW;Estados Unidos
+Incyte;INCY;Estados Unidos
+Ingersoll Rand;IR;Estados Unidos
+Insulet Corporation;PODD;Estados Unidos
+Intercontinental Exchange;ICE;Estados Unidos
+International Flavors & Fragrances;IFF;Estados Unidos
+International Paper;IP;Estados Unidos
+Interpublic Group of Companies (The);IPG;Estados Unidos
+Intuit;INTU;Estados Unidos
+Intuitive Surgical;ISRG;Estados Unidos
+Invesco;IVZ;Estados Unidos
+Invitation Homes;INVH;Estados Unidos
+IQVIA;IQV;Estados Unidos
+Iron Mountain;IRM;Estados Unidos
+J.B. Hunt;JBHT;Estados Unidos
+Jabil;JBL;Estados Unidos
+Jack Henry & Associates;JKHY;Estados Unidos
+Jacobs Solutions;J;Estados Unidos
+Johnson Controls;JCI;Estados Unidos
+Juniper Networks;JNPR;Estados Unidos
+Kellanova;K;Estados Unidos
+Kenvue;KVUE;Estados Unidos
+Keurig Dr Pepper;KDP;Estados Unidos
+KeyCorp;KEY;Estados Unidos
+Keysight Technologies;KEYS;Estados Unidos
+Kimberly-Clark;KMB;Estados Unidos
+Kimco Realty;KIM;Estados Unidos
+Kinder Morgan;KMI;Estados Unidos
+KKR;KKR;Estados Unidos
+KLA Corporation;KLAC;Estados Unidos
+Kraft Heinz;KHC;Estados Unidos
+Kroger;KR;Estados Unidos
+L3Harris;LHX;Estados Unidos
+LabCorp;LH;Estados Unidos
+Lam Research;LRCX;Estados Unidos
+Lamb Weston;LW;Estados Unidos
+Las Vegas Sands;LVS;Estados Unidos
+Leidos;LDOS;Estados Unidos
+Lennar;LEN;Estados Unidos
+Lennox International;LII;Estados Unidos
+Linde plc;LIN;Estados Unidos
+Live Nation Entertainment;LYV;Estados Unidos
+LKQ Corporation;LKQ;Estados Unidos
+Lockheed Martin;LMT;Estados Unidos
+Loews Corporation;L;Estados Unidos
+Lowe's;LOW;Estados Unidos
+Lululemon Athletica;LULU;Estados Unidos
+LyondellBasell;LYB;Estados Unidos
+M&T Bank;MTB;Estados Unidos
+Marathon Petroleum;MPC;Estados Unidos
+MarketAxess;MKTX;Estados Unidos
+Marriott International;MAR;Estados Unidos
+Marsh McLennan;MMC;Estados Unidos
+Martin Marietta Materials;MLM;Estados Unidos
+Masco;MAS;Estados Unidos
+Match Group;MTCH;Estados Unidos
+McCormick & Company;MKC;Estados Unidos
+McKesson Corporation;MCK;Estados Unidos
+MetLife;MET;Estados Unidos
+Mettler Toledo;MTD;Estados Unidos
+MGM Resorts;MGM;Estados Unidos
+Microchip Technology;MCHP;Estados Unidos
+Micron Technology;MU;Estados Unidos
+Mid-America Apartment Communities;MAA;Estados Unidos
+Moderna;MRNA;Estados Unidos
+Mohawk Industries;MHK;Estados Unidos
+Molina Healthcare;MOH;Estados Unidos
+Molson Coors Beverage Company;TAP;Estados Unidos
+Mondelez International;MDLZ;Estados Unidos
+Monolithic Power Systems;MPWR;Estados Unidos
+Monster Beverage;MNST;Estados Unidos
+Moody's Corporation;MCO;Estados Unidos
+Morgan Stanley;MS;Estados Unidos
+Mosaic Company (The);MOS;Estados Unidos
+Motorola Solutions;MSI;Estados Unidos
+MSCI;MSCI;Estados Unidos
+Nasdaq, Inc.;NDAQ;Estados Unidos
+NetApp;NTAP;Estados Unidos
+Newmont;NEM;Estados Unidos
+News Corp (Class A);NWSA;Estados Unidos
+News Corp (Class B);NWS;Estados Unidos
+NextEra Energy;NEE;Estados Unidos
+NiSource;NI;Estados Unidos
+Nordson Corporation;NDSN;Estados Unidos
+Norfolk Southern Railway;NSC;Estados Unidos
+Northern Trust;NTRS;Estados Unidos
+Northrop Grumman;NOC;Estados Unidos
+Norwegian Cruise Line Holdings;NCLH;Estados Unidos
+NRG Energy;NRG;Estados Unidos
+Nucor;NUE;Estados Unidos
+NVR, Inc.;NVR;Estados Unidos
+NXP Semiconductors;NXPI;Estados Unidos
+O'Reilly Auto Parts;ORLY;Estados Unidos
+Occidental Petroleum;OXY;Estados Unidos
+Old Dominion;ODFL;Estados Unidos
+Omnicom Group;OMC;Estados Unidos
+ON Semiconductor;ON;Estados Unidos
+ONEOK;OKE;Estados Unidos
+Otis Worldwide;OTIS;Estados Unidos
+Paccar;PCAR;Estados Unidos
+Packaging Corporation of America;PKG;Estados Unidos
+Palantir Technologies;PLTR;Estados Unidos
+Palo Alto Networks;PANW;Estados Unidos
+Paramount Global;PARA;Estados Unidos
+Parker Hannifin;PH;Estados Unidos
+Paychex;PAYX;Estados Unidos
+Paycom;PAYC;Estados Unidos
+PayPal;PYPL;Estados Unidos
+Pentair;PNR;Estados Unidos
+PepsiCo;PEP;Estados Unidos
+PG&E Corporation;PCG;Estados Unidos
+Phillips 66;PSX;Estados Unidos
+Pinnacle West;PNW;Estados Unidos
+PNC Financial Services;PNC;Estados Unidos
+Pool Corporation;POOL;Estados Unidos
+PPG Industries;PPG;Estados Unidos
+PPL Corporation;PPL;Estados Unidos
+Principal Financial Group;PFG;Estados Unidos
+Progressive Corporation;PGR;Estados Unidos
+Prologis;PLD;Estados Unidos
+Prudential Financial;PRU;Estados Unidos
+Public Service Enterprise Group;PEG;Estados Unidos
+PTC Inc.;PTC;Estados Unidos
+Public Storage;PSA;Estados Unidos
+PulteGroup;PHM;Estados Unidos
+Quanta Services;PWR;Estados Unidos
+Quest Diagnostics;DGX;Estados Unidos
+Ralph Lauren Corporation;RL;Estados Unidos
+Raymond James Financial;RJF;Estados Unidos
+RTX Corporation;RTX;Estados Unidos
+Realty Income;O;Estados Unidos
+Regency Centers;REG;Estados Unidos
+Regeneron Pharmaceuticals;REGN;Estados Unidos
+Regions Financial Corporation;RF;Estados Unidos
+Republic Services;RSG;Estados Unidos
+ResMed;RMD;Estados Unidos
+Revvity;RVTY;Estados Unidos
+Rockwell Automation;ROK;Estados Unidos
+Rollins, Inc.;ROL;Estados Unidos
+Roper Technologies;ROP;Estados Unidos
+Ross Stores;ROST;Estados Unidos
+Royal Caribbean Group;RCL;Estados Unidos
+S&P Global;SPGI;Estados Unidos
+SBA Communications;SBAC;Estados Unidos
+Schlumberger;SLB;Estados Unidos
+Seagate Technology;STX;Estados Unidos
+Sempra;SRE;Estados Unidos
+ServiceNow;NOW;Estados Unidos
+Sherwin-Williams;SHW;Estados Unidos
+Simon Property Group;SPG;Estados Unidos
+Skyworks Solutions;SWKS;Estados Unidos
+J.M. Smucker Company (The);SJM;Estados Unidos
+Smurfit WestRock;SW;Estados Unidos
+Snap-on;SNA;Estados Unidos
+Solventum;SOLV;Estados Unidos
+Southern Company;SO;Estados Unidos
+Southwest Airlines;LUV;Estados Unidos
+Stanley Black & Decker;SWK;Estados Unidos
+Starbucks;SBUX;Estados Unidos
+State Street Corporation;STT;Estados Unidos
+Steel Dynamics;STLD;Estados Unidos
+Steris;STE;Estados Unidos
+Stryker Corporation;SYK;Estados Unidos
+Supermicro;SMCI;Estados Unidos
+Synchrony Financial;SYF;Estados Unidos
+Synopsys;SNPS;Estados Unidos
+Sysco;SYY;Estados Unidos
+T-Mobile US;TMUS;Estados Unidos
+T. Rowe Price;TROW;Estados Unidos
+Take-Two Interactive;TTWO;Estados Unidos
+Tapestry, Inc.;TPR;Estados Unidos
+Targa Resources;TRGP;Estados Unidos
+Target Corporation;TGT;Estados Unidos
+TE Connectivity;TEL;Estados Unidos
+Teledyne Technologies;TDY;Estados Unidos
+Teleflex;TFX;Estados Unidos
+Teradyne;TER;Estados Unidos
+Tesla, Inc.;TSLA;Estados Unidos
+Texas Pacific Land Corporation;TPL;Estados Unidos
+Textron;TXT;Estados Unidos
+TJX Companies;TJX;Estados Unidos
+Tractor Supply;TSCO;Estados Unidos
+Trane Technologies;TT;Estados Unidos
+TransDigm Group;TDG;Estados Unidos
+Travelers Companies (The);TRV;Estados Unidos
+Trimble Inc.;TRMB;Estados Unidos
+Truist Financial;TFC;Estados Unidos
+Tyler Technologies;TYL;Estados Unidos
+Tyson Foods;TSN;Estados Unidos
+U.S. Bancorp;USB;Estados Unidos
+Uber;UBER;Estados Unidos
+UDR, Inc.;UDR;Estados Unidos
+Ulta Beauty;ULTA;Estados Unidos
+United Airlines Holdings;UAL;Estados Unidos
+United Rentals;URI;Estados Unidos
+Universal Health Services;UHS;Estados Unidos
+Valero Energy;VLO;Estados Unidos
+Ventas;VTR;Estados Unidos
+Veralto;VLTO;Estados Unidos
+Verisign;VRSN;Estados Unidos
+Verisk Analytics;VRSK;Estados Unidos
+Vertex Pharmaceuticals;VRTX;Estados Unidos
+Viatris;VTRS;Estados Unidos
+Vici Properties;VICI;Estados Unidos
+Vistra Corp.;VST;Estados Unidos
+Vulcan Materials Company;VMC;Estados Unidos
+W. R. Berkley Corporation;WRB;Estados Unidos
+W. W. Grainger;GWW;Estados Unidos
+Wabtec;WAB;Estados Unidos
+Walgreens Boots Alliance;WBA;Estados Unidos
+Warner Bros. Discovery;WBD;Estados Unidos
+Waste Management;WM;Estados Unidos
+Waters Corporation;WAT;Estados Unidos
+WEC Energy Group;WEC;Estados Unidos
+Welltower;WELL;Estados Unidos
+West Pharmaceutical Services;WST;Estados Unidos
+Western Digital;WDC;Estados Unidos
+Weyerhaeuser;WY;Estados Unidos
+Williams Companies;WMB;Estados Unidos
+Willis Towers Watson;WTW;Estados Unidos
+Workday, Inc.;WDAY;Estados Unidos
+Wynn Resorts;WYNN;Estados Unidos
+Xcel Energy;XEL;Estados Unidos
+Xylem Inc.;XYL;Estados Unidos
+Yum! Brands;YUM;Estados Unidos
+Zebra Technologies;ZBRA;Estados Unidos
+Zimmer Biomet;ZBH;Estados Unidos
+Zoetis;ZTS;Estados Unidos
+Kyndryl Holdings, Inc.;KD;Estados Unidos
+Top Build Corp.;BLD;Estados Unidos
+Novo Nordisk A/S;NVO;Estados Unidos
+Nasdaq Composite;^IXIC;Desconocido
+Dow Jones Industrial Average;^DJI;Desconocido
+FTSE 100;^FTSE;Desconocido
+DAX;^GDAXI;Desconocido
+CAC 40;^FCHI;Desconocido
+Nikkei 225;^N225;Desconocido
+Hang Seng Index;^HSI;Desconocido
+BSE Sensex;^BSESN;Desconocido
+ASX 200;^AXJO;Desconocido
+Ibovespa;^BVSP;Desconocido
+Euro Stoxx 50;^STOXX50E;Desconocido
+KOSPI;^KS11;Desconocido
+TSEC Weighted Index;^TWII;Desconocido
+AEX Amsterdam;^AEX;Desconocido
+MOEX Russia Index;IMOEX.ME;Desconocido
+Swiss Market Index (SMI);^SSMI;Desconocido
+TA-125;^TA125.TA;Desconocido
+IPC Mexico;^MXX;Desconocido
+Santiago IPSA;^CLX;Desconocido
+Jakarta Composite Index;^JKSE;Desconocido
+NZX 50;^NZ50;Desconocido
+OMX Stockholm 30;^OMX;Desconocido
+PSI 20;^PSI20;Desconocido
+ISEQ Overall Index;^ISEQ;Desconocido
