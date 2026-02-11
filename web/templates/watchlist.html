@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchlist - Sistema Weinstein</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>📊 Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/">Dashboard</a>
+                <a href="{{ base_path }}/stocks">Acciones</a>
+                <a href="{{ base_path }}/signals">Señales</a>
+                <a href="{{ base_path }}/watchlist" class="active">Watchlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>📈 Watchlist - Acciones en Etapa 2</h2>
+            <p class="subtitle">Acciones en tendencia alcista ordenadas por fuerza</p>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div class="stat-card blue">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-stage2">-</div>
+                    <div class="stat-label">Acciones en Etapa 2</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de acciones -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Acciones en Tendencia Alcista</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Ticker</th>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th>MA30</th>
+                                <th>Distancia MA30</th>
+                                <th>Pendiente MA30</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watchlist-table">
+                            <tr>
+                                <td colspan="7" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Trading Algorítmico</p>
+            <p class="footer-disclaimer">⚠️ Este sistema es educativo. No constituye asesoramiento financiero.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.BASE_PATH = "{{ base_path }}";
+    </script>
+    <script src="{{ base_path }}/static/watchlist.js"></script>
+</body>
+</html>

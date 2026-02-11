@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acciones - Sistema Weinstein</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>📊 Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/">Dashboard</a>
+                <a href="{{ base_path }}/stocks" class="active">Acciones</a>
+                <a href="{{ base_path }}/signals">Señales</a>
+                <a href="{{ base_path }}/watchlist">Watchlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>📈 Acciones Monitorizadas</h2>
+            <p class="subtitle">Lista completa de acciones con análisis Weinstein</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="🔍 Buscar por ticker o nombre...">
+            </div>
+            
+            <div class="filter-group">
+                <button class="filter-btn active" data-stage="all">Todas</button>
+                <button class="filter-btn" data-stage="1">Etapa 1</button>
+                <button class="filter-btn" data-stage="2">Etapa 2</button>
+                <button class="filter-btn" data-stage="3">Etapa 3</button>
+                <button class="filter-btn" data-stage="4">Etapa 4</button>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-stocks">-</div>
+                    <div class="stat-label">Total Acciones</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">1️⃣</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stage1-count">-</div>
+                    <div class="stat-label">Etapa 1</div>
+                </div>
+            </div>
+
+            <div class="stat-card blue">
+                <div class="stat-icon">2️⃣</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stage2-count">-</div>
+                    <div class="stat-label">Etapa 2</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">3️⃣</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stage3-count">-</div>
+                    <div class="stat-label">Etapa 3</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">4️⃣</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stage4-count">-</div>
+                    <div class="stat-label">Etapa 4</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de acciones -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Lista de Acciones</h3>
+                <span id="results-count"></span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Nombre</th>
+                                <th>Exchange</th>
+                                <th>Etapa</th>
+                                <th>Precio</th>
+                                <th>MA30</th>
+                                <th>Pendiente MA30</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stocks-table">
+                            <tr>
+                                <td colspan="7" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Paginación -->
+                <div id="pagination" style="margin-top: 1rem; text-align: center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Trading Algorítmico</p>
+            <p class="footer-disclaimer">⚠️ Este sistema es educativo. No constituye asesoramiento financiero.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.BASE_PATH = "{{ base_path }}";
+    </script>
+    <script src="{{ base_path }}/static/stocks.js"></script>
+</body>
+</html>

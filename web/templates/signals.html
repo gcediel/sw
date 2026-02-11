@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Señales - Sistema Weinstein</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>📊 Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/">Dashboard</a>
+                <a href="{{ base_path }}/stocks">Acciones</a>
+                <a href="{{ base_path }}/signals" class="active">Señales</a>
+                <a href="{{ base_path }}/watchlist">Watchlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>🔔 Señales de Trading</h2>
+            <p class="subtitle">Historial completo de señales BUY/SELL</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters">
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">Todas</button>
+                <button class="filter-btn" data-filter="BUY">BUY</button>
+                <button class="filter-btn" data-filter="SELL">SELL</button>
+            </div>
+            
+            <div class="filter-group">
+                <button class="filter-btn active" data-days="30">30 días</button>
+                <button class="filter-btn" data-days="90">90 días</button>
+                <button class="filter-btn" data-days="180">180 días</button>
+                <button class="filter-btn" data-days="365">1 año</button>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div class="stat-card">
+                <div class="stat-icon">🔔</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-signals">-</div>
+                    <div class="stat-label">Total Señales</div>
+                </div>
+            </div>
+
+            <div class="stat-card green">
+                <div class="stat-icon">🟢</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="buy-signals">-</div>
+                    <div class="stat-label">Señales BUY</div>
+                </div>
+            </div>
+
+            <div class="stat-card red">
+                <div class="stat-icon">🔴</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="sell-signals">-</div>
+                    <div class="stat-label">Señales SELL</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de señales -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Señales Generadas</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Ticker</th>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th>Transición</th>
+                                <th>Precio</th>
+                                <th>MA30</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signals-table">
+                            <tr>
+                                <td colspan="7" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Trading Algorítmico</p>
+            <p class="footer-disclaimer">⚠️ Este sistema es educativo. No constituye asesoramiento financiero.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.BASE_PATH = "{{ base_path }}";
+    </script>
+    <script src="{{ base_path }}/static/signals.js"></script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Weinstein - Dashboard</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>📊 Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/" class="active">Dashboard</a>
+                <a href="{{ base_path }}/stocks">Acciones</a>
+                <a href="{{ base_path }}/signals">Señales</a>
+                <a href="{{ base_path }}/watchlist">Watchlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>Dashboard Principal</h2>
+            <p class="subtitle">Última actualización: <span id="last-update">Cargando...</span></p>
+        </div>
+
+        <!-- Estadísticas Generales -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-stocks">-</div>
+                    <div class="stat-label">Acciones Monitorizadas</div>
+                </div>
+            </div>
+
+            <div class="stat-card green">
+                <div class="stat-icon">🟢</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="buy-signals">-</div>
+                    <div class="stat-label">Señales BUY (7 días)</div>
+                </div>
+            </div>
+
+            <div class="stat-card red">
+                <div class="stat-icon">🔴</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="sell-signals">-</div>
+                    <div class="stat-label">Señales SELL (7 días)</div>
+                </div>
+            </div>
+
+            <div class="stat-card blue">
+                <div class="stat-icon">👀</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stage2-count">-</div>
+                    <div class="stat-label">Acciones en Etapa 2</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribución por Etapas -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Distribución por Etapas</h3>
+            </div>
+            <div class="card-body">
+                <div class="stages-grid">
+                    <div class="stage-card stage-1">
+                        <div class="stage-number">1</div>
+                        <div class="stage-name">Base/Consolidación</div>
+                        <div class="stage-count" id="stage-1-count">-</div>
+                        <div class="stage-percent" id="stage-1-percent">-</div>
+                    </div>
+
+                    <div class="stage-card stage-2">
+                        <div class="stage-number">2</div>
+                        <div class="stage-name">Tendencia Alcista</div>
+                        <div class="stage-count" id="stage-2-count">-</div>
+                        <div class="stage-percent" id="stage-2-percent">-</div>
+                    </div>
+
+                    <div class="stage-card stage-3">
+                        <div class="stage-number">3</div>
+                        <div class="stage-name">Techo/Distribución</div>
+                        <div class="stage-count" id="stage-3-count">-</div>
+                        <div class="stage-percent" id="stage-3-percent">-</div>
+                    </div>
+
+                    <div class="stage-card stage-4">
+                        <div class="stage-number">4</div>
+                        <div class="stage-name">Tendencia Bajista</div>
+                        <div class="stage-count" id="stage-4-count">-</div>
+                        <div class="stage-percent" id="stage-4-percent">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Señales Recientes -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Últimas Señales BUY</h3>
+                <a href="{{ base_path }}/signals" class="btn-link">Ver todas →</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="recent-signals-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Nombre</th>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Transición</th>
+                                <th>Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-signals">
+                            <tr>
+                                <td colspan="6" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Acciones en Etapa 2 -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Top 10 Acciones en Etapa 2 (por fuerza)</h3>
+                <a href="{{ base_path }}/watchlist" class="btn-link">Ver watchlist →</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Ticker</th>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th>Pendiente MA30</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-stage2">
+                            <tr>
+                                <td colspan="5" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Trading Algorítmico</p>
+            <p class="footer-disclaimer">⚠️ Este sistema es educativo. No constituye asesoramiento financiero.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Pasar base_path del servidor al JavaScript
+        window.BASE_PATH = "{{ base_path }}";
+    </script>
+    <script src="{{ base_path }}/static/dashboard.js"></script>
+</body>
+</html>
