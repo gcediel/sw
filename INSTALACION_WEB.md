@@ -1,106 +1,156 @@
 # Instalación del Dashboard Web - Sistema Weinstein
 
-**Versión:** 0.3.0  
-**Stack:** FastAPI + HTML/CSS/JS
+Guía completa para instalar y configurar el dashboard web del Sistema Weinstein.
 
----
+## 📋 Requisitos Previos
 
-## 📋 Requisitos
+- Python 3.9+
+- MariaDB/MySQL configurado con el schema del proyecto
+- Apache 2.4+ (para producción)
+- Sistema base del proyecto funcionando
 
-- Python 3.9+ (ya instalado)
-- FastAPI + Uvicorn
-- Nginx o Apache como proxy reverso
+## 📦 Dependencias
 
----
-
-## 🚀 Instalación Paso a Paso
-
-### **1. Instalar Dependencias**
+El dashboard web requiere estas librerías adicionales:
 
 ```bash
-su - stanweinstein
-cd /home/stanweinstein
-source venv/bin/activate
-
-# Instalar FastAPI y Uvicorn
-pip install fastapi uvicorn jinja2 --break-system-packages
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+jinja2==3.1.3
+python-multipart==0.0.6
 ```
 
----
+Instalar con:
 
-### **2. Crear Estructura de Directorios**
+```bash
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## 📁 Estructura del Dashboard
+
+```
+stanweinstein/
+└── web/
+    ├── main.py                 # FastAPI application
+    ├── templates/              # Plantillas HTML
+    │   ├── dashboard.html      # Página principal
+    │   ├── stocks.html         # Lista de acciones
+    │   ├── signals.html        # Historial de señales
+    │   ├── watchlist.html      # Watchlist Etapa 2
+    │   └── stock_detail.html   # Detalle de acción
+    └── static/                 # Archivos estáticos
+        ├── style.css           # Estilos CSS
+        ├── table-sort.js       # Librería de ordenación
+        ├── dashboard.js        # Lógica dashboard
+        ├── stocks.js           # Lógica stocks
+        ├── signals.js          # Lógica signals
+        ├── watchlist.js        # Lógica watchlist
+        └── stock_detail.js     # Lógica detalle
+```
+
+## 🚀 Instalación
+
+### 1. Verificar archivos del proyecto
 
 ```bash
 cd /home/stanweinstein
 
-# Crear directorios web
-mkdir -p web/static web/templates
-
-# Verificar estructura
+# Verificar estructura web/
 ls -la web/
+ls -la web/templates/
+ls -la web/static/
 ```
 
-Estructura esperada:
-```
-/home/stanweinstein/
-├── app/              (ya existe)
-├── scripts/          (ya existe)
-└── web/              (nuevo)
-    ├── main.py       (FastAPI app)
-    ├── static/       (CSS, JS)
-    │   ├── style.css
-    │   └── dashboard.js
-    └── templates/    (HTML)
-        └── dashboard.html
+**Archivos requeridos en `web/static/`:**
+- ✅ style.css
+- ✅ table-sort.js
+- ✅ dashboard.js
+- ✅ stocks.js
+- ✅ signals.js
+- ✅ watchlist.js
+- ✅ stock_detail.js
+
+**Archivos requeridos en `web/templates/`:**
+- ✅ dashboard.html
+- ✅ stocks.html
+- ✅ signals.html
+- ✅ watchlist.html
+- ✅ stock_detail.html
+
+### 2. Configurar main.py
+
+El archivo `web/main.py` debe tener configurado el `root_path="/sw"`:
+
+```python
+app = FastAPI(
+    title="Sistema Weinstein",
+    root_path="/sw"  # IMPORTANTE: para subdirectorio Apache
+)
 ```
 
----
+Y todas las respuestas de templates deben pasar `base_path="/sw"`:
 
-### **3. Copiar Archivos**
+```python
+return templates.TemplateResponse("dashboard.html", {
+    "request": request,
+    "base_path": "/sw"  # Hardcoded para Apache
+})
+```
+
+### 3. Verificar IDs de tablas en HTML
+
+**IMPORTANTE**: Los IDs deben estar en el elemento `<table>`, NO en `<tbody>`:
+
+```html
+<!-- ✅ CORRECTO -->
+<table id="stocks-table">
+    <thead>...</thead>
+    <tbody id="stocks-tbody">...</tbody>
+</table>
+
+<!-- ❌ INCORRECTO -->
+<table>
+    <thead>...</thead>
+    <tbody id="stocks-table">...</tbody>
+</table>
+```
+
+### 4. Verificar que JS busca tbody correcto
+
+En cada archivo JS (`stocks.js`, `signals.js`, `watchlist.js`, `dashboard.js`):
+
+```javascript
+// Buscar el TBODY para insertar filas
+const tbody = document.getElementById('stocks-tbody'); // NO 'stocks-table'
+
+// Inicializar ordenación en la TABLA
+initTableSort('stocks-table', [...]);  // NO 'stocks-tbody'
+```
+
+## ⚙️ Configuración de Desarrollo
+
+### Ejecutar en local
 
 ```bash
-# Copiar FastAPI app
-cp web_main.py /home/stanweinstein/web/main.py
+cd /home/stanweinstein/web
+source ../venv/bin/activate
 
-# Copiar archivos estáticos
-cp style.css /home/stanweinstein/web/static/
-cp dashboard.js /home/stanweinstein/web/static/
+# Iniciar servidor de desarrollo
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
-# Copiar templates
-cp dashboard.html /home/stanweinstein/web/templates/
-
-# Dar permisos
-chmod 644 /home/stanweinstein/web/main.py
-chmod 644 /home/stanweinstein/web/static/*
-chmod 644 /home/stanweinstein/web/templates/*
+# Acceder en navegador
+http://localhost:8000/
 ```
 
----
+**Nota**: En desarrollo, acceder directamente a `http://localhost:8000/` (sin `/sw`)
 
-### **4. Probar FastAPI en Desarrollo**
+## 🌐 Configuración de Producción
 
-```bash
-cd /home/stanweinstein
-source venv/bin/activate
+### 1. Crear servicio systemd
 
-# Ejecutar servidor de desarrollo
-uvicorn web.main:app --host 0.0.0.0 --port 8000 --reload
-```
+Crear archivo `/etc/systemd/system/weinstein-web.service`:
 
-**Abrir navegador:** http://servidor:8000
-
-Deberías ver el dashboard cargando.
-
----
-
-### **5. Crear Servicio Systemd (Producción)**
-
-```bash
-# Como root
-sudo nano /etc/systemd/system/weinstein-web.service
-```
-
-Contenido:
 ```ini
 [Unit]
 Description=Sistema Weinstein Web Dashboard
@@ -113,7 +163,6 @@ Group=stanweinstein
 WorkingDirectory=/home/stanweinstein
 Environment="PATH=/home/stanweinstein/venv/bin"
 ExecStart=/home/stanweinstein/venv/bin/uvicorn web.main:app --host 127.0.0.1 --port 8000
-
 Restart=always
 RestartSec=10
 
@@ -121,276 +170,399 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-**Activar servicio:**
+Activar servicio:
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable weinstein-web
 sudo systemctl start weinstein-web
-
-# Verificar estado
 sudo systemctl status weinstein-web
-
-# Ver logs
-sudo journalctl -u weinstein-web -f
 ```
 
----
+### 2. Configurar Apache como proxy
 
-### **6. Configurar Nginx como Proxy Reverso**
+Crear archivo `/etc/httpd/conf.d/sw.conf`:
 
-#### **Opción A: Puerto 80 (HTTP)**
-
-```bash
-# Instalar Nginx
-sudo dnf install -y nginx  # AlmaLinux/Rocky
-# sudo apt install -y nginx  # Debian/Ubuntu
-
-# Crear configuración
-sudo nano /etc/nginx/conf.d/weinstein.conf
-```
-
-Contenido:
-```nginx
-server {
-    listen 80;
-    server_name _;  # O tu dominio/IP
-
-    client_max_body_size 100M;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /static {
-        alias /home/stanweinstein/web/static;
-        expires 30d;
-    }
-}
-```
-
-**Activar Nginx:**
-```bash
-sudo systemctl enable nginx
-sudo systemctl start nginx
-
-# Verificar configuración
-sudo nginx -t
-
-# Recargar
-sudo systemctl reload nginx
-
-# Abrir firewall
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload
-```
-
-#### **Opción B: Puerto Personalizado (ej: 8080)**
-
-```nginx
-server {
-    listen 8080;
-    server_name _;
-
-    # ... resto igual ...
-}
-```
-
-```bash
-# Abrir puerto en firewall
-sudo firewall-cmd --permanent --add-port=8080/tcp
-sudo firewall-cmd --reload
-```
-
----
-
-### **7. Configurar Apache como Proxy (Alternativa)**
-
-Si prefieres Apache en lugar de Nginx:
-
-```bash
-# Instalar Apache
-sudo dnf install -y httpd  # AlmaLinux/Rocky
-# sudo apt install -y apache2  # Debian/Ubuntu
-
-# Habilitar módulos necesarios
-sudo a2enmod proxy proxy_http  # Debian/Ubuntu
-
-# Crear configuración
-sudo nano /etc/httpd/conf.d/weinstein.conf  # AlmaLinux/Rocky
-```
-
-Contenido:
 ```apache
-<VirtualHost *:80>
-    ServerName weinstein.local
-    
+<Location /sw>
+    ProxyPass http://127.0.0.1:8000
+    ProxyPassReverse http://127.0.0.1:8000
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Prefix "/sw"
     ProxyPreserveHost On
-    ProxyPass / http://127.0.0.1:8000/
-    ProxyPassReverse / http://127.0.0.1:8000/
-    
-    <Directory /home/stanweinstein/web/static>
-        Require all granted
-    </Directory>
-    
-    Alias /static /home/stanweinstein/web/static
-</VirtualHost>
+</Location>
 ```
 
-**Activar Apache:**
-```bash
-sudo systemctl enable httpd
-sudo systemctl start httpd
+Habilitar módulos necesarios:
 
-# Abrir firewall
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload
+```bash
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod headers
+sudo systemctl restart httpd
 ```
 
----
-
-## ✅ Verificación
-
-### **1. Verificar Servicio FastAPI**
+### 3. Verificar configuración
 
 ```bash
-sudo systemctl status weinstein-web
+# Ver logs del servicio
+sudo journalctl -u weinstein-web -f
 
-# Debería mostrar: Active: active (running)
-```
+# Verificar que está escuchando
+sudo netstat -tlnp | grep 8000
 
-### **2. Verificar Nginx/Apache**
-
-```bash
-sudo systemctl status nginx
-# o
+# Verificar Apache
+sudo apachectl configtest
 sudo systemctl status httpd
 ```
 
-### **3. Probar Endpoints API**
+### 4. Acceder al dashboard
 
-```bash
-# Health check
-curl http://localhost:8000/api/health
-
-# Dashboard stats
-curl http://localhost:8000/api/dashboard/stats
-
-# Watchlist
-curl http://localhost:8000/api/watchlist
+```
+https://www.tudominio.com:8443/sw
 ```
 
-### **4. Abrir en Navegador**
+## 🎨 Funcionalidades del Dashboard
 
-Visitar: **http://tu-servidor**
+### 1. Dashboard Principal (`/sw`)
 
-Deberías ver:
-- Dashboard con estadísticas
-- Distribución por etapas
-- Señales recientes
-- Top acciones en Etapa 2
+**Características:**
+- Estadísticas generales (total acciones, señales semanales, Etapa 2)
+- Distribución por etapas (4 cards con %)
+- Top 10 acciones Etapa 2 (ordenable)
+- Últimas 5 señales BUY (ordenable)
+- Última actualización
 
----
+**Ordenación:**
+- Click en headers de tabla para ordenar
+- Soporta: Ticker, Nombre, Fecha, Tipo, Precio, Pendiente
 
-## 📊 Endpoints API Disponibles
+### 2. Lista de Acciones (`/sw/stocks`)
 
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/` | GET | Dashboard HTML |
-| `/stocks` | GET | Lista de acciones HTML |
-| `/stock/{ticker}` | GET | Detalle de acción HTML |
-| `/signals` | GET | Señales HTML |
-| `/watchlist` | GET | Watchlist HTML |
-| `/api/health` | GET | Health check |
-| `/api/dashboard/stats` | GET | Estadísticas dashboard |
-| `/api/stocks` | GET | Lista acciones JSON |
-| `/api/stock/{ticker}` | GET | Detalle acción JSON |
-| `/api/signals` | GET | Señales JSON |
-| `/api/watchlist` | GET | Acciones Etapa 2 JSON |
+**Características:**
+- Búsqueda en tiempo real (ticker o nombre)
+- Filtros por etapa (All, 1, 2, 3, 4)
+- Paginación (50 acciones por página)
+- 7 columnas ordenables
+- Contador de resultados
 
----
+**Columnas ordenables:**
+- Ticker, Nombre, Exchange, Etapa, Precio, MA30, Pendiente MA30
 
-## 🔧 Troubleshooting
+### 3. Señales (`/sw/signals`)
 
-### **Problema: 502 Bad Gateway**
+**Características:**
+- Filtro por tipo (All, BUY, SELL)
+- Filtro por período (30, 90, 180, 365 días)
+- Estadísticas (Total, BUY, SELL)
+- Límite 100 señales
+- 7 columnas ordenables
+
+**Columnas ordenables:**
+- Fecha, Ticker, Nombre, Tipo, Transición, Precio, MA30
+
+### 4. Watchlist (`/sw/watchlist`)
+
+**Características:**
+- Solo acciones en Etapa 2
+- Ordenado por pendiente MA30 (más fuerte primero)
+- 7 columnas ordenables
+- Contador total Etapa 2
+
+**Columnas ordenables:**
+- #, Ticker, Nombre, Precio, MA30, Distancia MA30, Pendiente MA30
+
+### 5. Detalle de Acción (`/sw/stock/{TICKER}`)
+
+**Características:**
+- Información actual (6 stats cards)
+- **Gráfico interactivo** con Chart.js:
+  - Selector de período: **6M** | **1A** | **2A** | **Todo**
+  - Botón activo resaltado (fondo azul)
+  - Precio con fondo coloreado por etapa
+  - Línea MA30 (naranja, discontinua)
+  - Tooltips interactivos
+- Señales generadas (historial completo)
+- Historial de cambios de etapa (últimos 10)
+
+**Selector de período:**
+- **6M**: 26 semanas (6 meses)
+- **1A**: 52 semanas (1 año) - Por defecto
+- **2A**: 104 semanas (2 años)
+- **Todo**: Histórico completo
+
+## 🔧 Ordenación de Tablas
+
+### Implementación
+
+La ordenación se implementa con `table-sort.js`:
+
+1. **Añadir ID a la tabla**:
+```html
+<table id="stocks-table">
+```
+
+2. **Inicializar en JavaScript**:
+```javascript
+initTableSort('stocks-table', [
+    { index: 0, type: 'string' },   // Ticker
+    { index: 1, type: 'string' },   // Nombre
+    { index: 2, type: 'date' },     // Fecha
+    { index: 3, type: 'currency' }, // Precio
+    { index: 4, type: 'percentage' } // Pendiente
+]);
+```
+
+3. **Llamar dentro de requestAnimationFrame**:
+```javascript
+requestAnimationFrame(() => {
+    if (typeof initTableSort === 'function') {
+        initTableSort('stocks-table', [...]);
+    }
+});
+```
+
+### Tipos soportados
+
+- `string`: Texto alfabético
+- `number`: Números enteros/decimales
+- `currency`: Monedas ($)
+- `percentage`: Porcentajes (%)
+- `date`: Fechas
+
+### Indicadores visuales
+
+- **↕**: Columna sin ordenar (gris, opacidad 0.3)
+- **↑**: Ordenado ascendente (azul)
+- **↓**: Ordenado descendente (azul)
+- **Hover**: Fondo gris claro
+
+## 🐛 Solución de Problemas
+
+### 1. Ordenación no funciona
+
+**Problema**: No aparecen flechitas en los headers
+
+**Diagnóstico:**
+```bash
+# Verificar que table-sort.js existe
+ls -la /home/stanweinstein/web/static/table-sort.js
+
+# Verificar que HTML lo carga
+grep "table-sort.js" /home/stanweinstein/web/templates/*.html
+```
+
+**Solución:**
+- Verificar que `table-sort.js` se carga **ANTES** que otros JS
+- Limpiar caché del navegador (Ctrl+Shift+R)
+- Verificar consola del navegador (F12) para errores
+
+### 2. Headers de tabla desaparecen
+
+**Problema**: Al cargar datos, desaparecen los headers
+
+**Causa**: ID está en `<tbody>` en lugar de `<table>`
+
+**Solución:**
+```html
+<!-- ANTES (incorrecto) -->
+<table>
+    <thead>...</thead>
+    <tbody id="stocks-table">
+
+<!-- DESPUÉS (correcto) -->
+<table id="stocks-table">
+    <thead>...</thead>
+    <tbody id="stocks-tbody">
+```
+
+Y en JavaScript:
+```javascript
+// Cambiar
+const tbody = document.getElementById('stocks-table');
+// Por
+const tbody = document.getElementById('stocks-tbody');
+```
+
+### 3. CSS/JS no cargan
+
+**Problema**: Página sin estilos o sin funcionalidad
+
+**Diagnóstico:**
+```bash
+# Ver qué carga el navegador (F12 → Network)
+# Estado 304: Caché
+# Estado 404: Archivo no existe
+# Estado 200: OK
+
+# Verificar rutas en HTML
+curl -s http://127.0.0.1:8000/ | grep '<script\|<link'
+```
+
+**Solución:**
+- Limpiar caché navegador (Ctrl+Shift+Delete)
+- Verificar `base_path="/sw"` en main.py
+- Verificar archivos en `/home/stanweinstein/web/static/`
+
+### 4. Gráfico no cambia de período
+
+**Problema**: Botones no responden o período no cambia
+
+**Diagnóstico:**
+```javascript
+// En consola del navegador (F12)
+console.log(typeof loadChart);  // Debe ser "function"
+console.log(fullHistoryData);   // Debe tener datos
+```
+
+**Solución:**
+- Verificar que `stock_detail.js` tiene función `loadChart(weeks)`
+- Verificar que botones tienen `onclick="loadChart(26)"`
+- Verificar que clases CSS `.period-btn` y `.active` existen
+
+### 5. Botón activo no se resalta
+
+**Problema**: No se ve qué período está seleccionado
+
+**Solución:**
+
+Añadir estilos CSS en `stock_detail.html`:
+
+```html
+<style>
+.period-btn {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #2563eb;
+    background: transparent;
+    color: #2563eb;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.period-btn:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.period-btn.active {
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+}
+</style>
+```
+
+## 📊 API Endpoints
+
+El dashboard expone estos endpoints:
+
+```
+GET /                           → Dashboard principal
+GET /stocks                     → Lista de acciones
+GET /signals                    → Señales históricas
+GET /watchlist                  → Watchlist Etapa 2
+GET /stock/{ticker}            → Detalle de acción
+
+GET /api/dashboard/stats       → Estadísticas JSON
+GET /api/stocks                → Acciones JSON (filtros, paginación)
+GET /api/stock/{ticker}        → Acción JSON (detalle completo)
+GET /api/signals               → Señales JSON (filtros)
+GET /api/watchlist             → Watchlist JSON
+GET /api/health                → Health check
+```
+
+## 📈 Mantenimiento
+
+### Ver logs
 
 ```bash
-# Verificar que FastAPI está corriendo
+# Logs del servicio
+sudo journalctl -u weinstein-web -f
+
+# Logs de Apache
+sudo tail -f /var/log/httpd/error_log
+sudo tail -f /var/log/httpd/access_log
+```
+
+### Reiniciar servicio
+
+```bash
+sudo systemctl restart weinstein-web
 sudo systemctl status weinstein-web
+```
 
-# Ver logs
-sudo journalctl -u weinstein-web -n 50
+### Actualizar código
 
-# Reiniciar servicio
+```bash
+cd /home/stanweinstein
+git pull
+source venv/bin/activate
+pip install -r requirements.txt
 sudo systemctl restart weinstein-web
 ```
 
-### **Problema: No carga CSS/JS**
+### Verificar funcionamiento
 
 ```bash
-# Verificar permisos
-ls -la /home/stanweinstein/web/static/
+# 1. Servicio activo
+sudo systemctl is-active weinstein-web
 
-# Dar permisos a Nginx
-sudo chmod 755 /home/stanweinstein
-sudo chmod 755 /home/stanweinstein/web
-sudo chmod 755 /home/stanweinstein/web/static
-sudo chmod 644 /home/stanweinstein/web/static/*
+# 2. Puerto escuchando
+sudo netstat -tlnp | grep 8000
+
+# 3. Logs sin errores
+sudo journalctl -u weinstein-web --since "1 hour ago"
+
+# 4. Acceso web
+curl -I http://127.0.0.1:8000/
 ```
 
-### **Problema: Error de módulo**
+## 🔐 Seguridad
+
+### Configuración recomendada
+
+1. **Ejecutar como usuario sin privilegios** (stanweinstein)
+2. **Acceso solo desde localhost** (127.0.0.1:8000)
+3. **Apache como proxy reverso** con HTTPS
+4. **Firewall** bloqueando acceso directo al puerto 8000
+
+### Permisos de archivos
 
 ```bash
-# Reinstalar dependencias
-source /home/stanweinstein/venv/bin/activate
-pip install fastapi uvicorn jinja2 --break-system-packages
+# Propietario correcto
+sudo chown -R stanweinstein:stanweinstein /home/stanweinstein/web
 
-# Verificar instalación
-python -c "import fastapi; print(fastapi.__version__)"
+# Permisos restrictivos
+chmod 755 /home/stanweinstein/web
+chmod 644 /home/stanweinstein/web/static/*
+chmod 644 /home/stanweinstein/web/templates/*
+chmod 644 /home/stanweinstein/web/main.py
 ```
 
-### **Problema: SELinux bloquea conexión**
+## ✅ Checklist de Instalación
 
-```bash
-# Verificar si SELinux está activo
-getenforce
+- [ ] Dependencias instaladas (`pip install -r requirements.txt`)
+- [ ] Archivos `web/` completos (templates + static)
+- [ ] `main.py` configurado con `root_path="/sw"` y `base_path="/sw"`
+- [ ] IDs de tablas en `<table>`, no en `<tbody>`
+- [ ] JavaScript busca tbody correcto (`*-tbody`)
+- [ ] `table-sort.js` se carga ANTES que otros JS
+- [ ] Servicio systemd creado y activo
+- [ ] Apache configurado con proxy a puerto 8000
+- [ ] Logs sin errores
+- [ ] Dashboard accesible en `https://dominio.com/sw`
+- [ ] Ordenación de tablas funciona (flechitas visibles)
+- [ ] Selector de período funciona (botón activo resaltado)
 
-# Permitir conexión HTTP de Nginx a backend
-sudo setsebool -P httpd_can_network_connect 1
+## 📞 Soporte
 
-# O deshabilitar temporalmente para probar
-sudo setenforce 0
-```
+Si encuentras problemas:
+
+1. Revisa los logs: `sudo journalctl -u weinstein-web -f`
+2. Verifica la consola del navegador (F12)
+3. Comprueba la sección "Solución de Problemas"
+4. Verifica el checklist de instalación
 
 ---
 
-## 🔄 Actualización del Código
-
-```bash
-# Cuando hagas cambios en el código
-sudo systemctl restart weinstein-web
-
-# O en desarrollo (auto-reload)
-uvicorn web.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
----
-
-## 📝 Próximos Pasos
-
-Una vez funcionando el dashboard básico:
-
-1. ✅ Crear página de **lista de acciones** (stocks.html)
-2. ✅ Crear página de **detalle de acción** con gráfico (stock_detail.html)
-3. ✅ Crear página de **señales** (signals.html)
-4. ✅ Crear página de **watchlist** (watchlist.html)
-5. Añadir gráficos con Chart.js
-6. Implementar filtros y búsqueda
-7. Añadir paginación
-
----
-
-**Dashboard web instalado v0.3.0** - Sistema Weinstein
+**Sistema Weinstein v0.3 - Dashboard Web Completo**
