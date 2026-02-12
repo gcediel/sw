@@ -4,6 +4,7 @@ const BASE_PATH = window.BASE_PATH || '';
 const TICKER = window.TICKER;
 
 let chartInstance = null;
+let fullHistoryData = null; // Guardar datos completos
 
 // Cargar datos al iniciar
 document.addEventListener('DOMContentLoaded', function() {
@@ -21,6 +22,9 @@ async function loadStockDetail() {
         
         const data = await response.json();
         
+        // Guardar datos completos para filtrado posterior
+        fullHistoryData = data.history;
+        
         // Mostrar contenido
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
@@ -33,8 +37,8 @@ async function loadStockDetail() {
         // Mostrar información actual
         displayCurrentInfo(data.current);
         
-        // Crear gráfico
-        createChart(data.history);
+        // Crear gráfico por defecto (1 año = 52 semanas)
+        loadChart(52);
         
         // Mostrar señales
         displaySignals(data.signals);
@@ -49,6 +53,40 @@ async function loadStockDetail() {
         document.getElementById('error-message').textContent = 
             `No se pudo cargar la información de ${TICKER}. ${error.message}`;
     }
+}
+
+// Cargar gráfico con período específico
+function loadChart(weeks) {
+    if (!fullHistoryData) return;
+    
+    // Filtrar datos según período
+    let filteredData = fullHistoryData;
+    if (weeks > 0 && fullHistoryData.length > weeks) {
+        filteredData = fullHistoryData.slice(-weeks);
+    }
+    
+    // Actualizar botones activos
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Marcar botón correspondiente como activo
+    const buttonTexts = {
+        26: '6M',
+        52: '1A',
+        104: '2A',
+        0: 'Todo'
+    };
+    
+    const buttons = document.querySelectorAll('.period-btn');
+    buttons.forEach(btn => {
+        if (btn.textContent === buttonTexts[weeks]) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Crear/actualizar gráfico
+    createChart(filteredData);
 }
 
 // Mostrar información actual
