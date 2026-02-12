@@ -13,10 +13,9 @@ async function loadWatchlist() {
         const response = await fetch(`${BASE_PATH}/api/watchlist`);
         const data = await response.json();
         
-        // Actualizar contador
         document.getElementById('total-stage2').textContent = data.total;
         
-        const tbody = document.getElementById('watchlist-table');
+        const tbody = document.getElementById('watchlist-tbody');
         tbody.innerHTML = '';
         
         if (data.stocks.length === 0) {
@@ -24,11 +23,9 @@ async function loadWatchlist() {
             return;
         }
         
-        // Renderizar tabla
         data.stocks.forEach((stock, index) => {
             const row = document.createElement('tr');
             
-            // Calcular distancia de MA30
             const distanceMA30 = stock.ma30 
                 ? (((stock.close - stock.ma30) / stock.ma30) * 100).toFixed(2)
                 : 'N/A';
@@ -53,6 +50,21 @@ async function loadWatchlist() {
             tbody.appendChild(row);
         });
         
+        // Inicializar ordenación
+        requestAnimationFrame(() => {
+            if (typeof initTableSort === 'function') {
+                initTableSort('watchlist-table', [
+                    { index: 0, type: 'number' },
+                    { index: 1, type: 'string' },
+                    { index: 2, type: 'string' },
+                    { index: 3, type: 'currency' },
+                    { index: 4, type: 'currency' },
+                    { index: 5, type: 'percentage' },
+                    { index: 6, type: 'percentage' }
+                ]);
+            }
+        });
+        
     } catch (error) {
         console.error('Error cargando watchlist:', error);
         document.getElementById('watchlist-table').innerHTML = 
@@ -60,7 +72,6 @@ async function loadWatchlist() {
     }
 }
 
-// Utilidades
 function truncate(str, maxLength) {
     if (str.length <= maxLength) return str;
     return str.substr(0, maxLength) + '...';

@@ -77,7 +77,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table>
+                    <table id="signals-table">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -89,7 +89,7 @@
                                 <th>MA30</th>
                             </tr>
                         </thead>
-                        <tbody id="signals-table">
+                        <tbody id="signals-tbody">
                             <tr>
                                 <td colspan="7" class="text-center">Cargando...</td>
                             </tr>
@@ -110,6 +110,7 @@
     <script>
         window.BASE_PATH = "{{ base_path }}";
     </script>
+    <script src="{{ base_path }}/static/table-sort.js"></script>
     <script src="{{ base_path }}/static/signals.js"></script>
 </body>
 </html>

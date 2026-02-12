@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Detalle - Sistema Weinstein</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>📊 Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/">Dashboard</a>
+                <a href="{{ base_path }}/stocks">Acciones</a>
+                <a href="{{ base_path }}/signals">Señales</a>
+                <a href="{{ base_path }}/watchlist">Watchlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Loading -->
+        <div id="loading" style="text-align: center; padding: 3rem;">
+            <h2>Cargando datos de {{ ticker }}...</h2>
+        </div>
+
+        <!-- Error -->
+        <div id="error" style="display: none; text-align: center; padding: 3rem;">
+            <h2>❌ Error cargando datos</h2>
+            <p id="error-message"></p>
+            <a href="{{ base_path }}/stocks" class="btn btn-primary">← Volver a la lista</a>
+        </div>
+
+        <!-- Contenido principal (oculto inicialmente) -->
+        <div id="content" style="display: none;">
+            <div class="header">
+                <div>
+                    <h2 id="stock-title">-</h2>
+                    <p class="subtitle" id="stock-name">-</p>
+                </div>
+                <a href="{{ base_path }}/stocks" class="btn btn-primary">← Volver a la lista</a>
+            </div>
+
+            <!-- Información actual -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📊 Información Actual</h3>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">Etapa Actual</div>
+                                <div class="stat-value" id="current-stage">-</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">Precio</div>
+                                <div class="stat-value" id="current-price">-</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">MA30</div>
+                                <div class="stat-value" id="current-ma30">-</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">Distancia MA30</div>
+                                <div class="stat-value" id="current-distance">-</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">Pendiente MA30</div>
+                                <div class="stat-value" id="current-slope">-</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-label">Última Actualización</div>
+                                <div class="stat-value" style="font-size: 1rem;" id="last-update">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📈 Precio y MA30 (últimas 30 semanas)</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="priceChart" style="max-height: 400px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Dos columnas: Señales e Historial -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                
+                <!-- Señales -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔔 Señales Generadas</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="signals-list">
+                            <p style="text-align: center; color: #6c757d;">Sin señales generadas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historial de etapas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📜 Historial de Etapas</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="stage-history">
+                            <p style="text-align: center; color: #6c757d;">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Trading Algorítmico</p>
+            <p class="footer-disclaimer">⚠️ Este sistema es educativo. No constituye asesoramiento financiero.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.BASE_PATH = "{{ base_path }}";
+        window.TICKER = "{{ ticker }}";
+    </script>
+    <script src="{{ base_path }}/static/stock_detail.js"></script>
+</body>
+</html>

@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupFilters() {
     document.querySelectorAll('.filter-btn[data-stage]').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Actualizar botones activos
             document.querySelectorAll('.filter-btn[data-stage]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
@@ -41,7 +40,7 @@ function setupSearch() {
             currentSearch = this.value.trim();
             currentOffset = 0;
             loadStocks();
-        }, 500); // Esperar 500ms después de que el usuario deje de escribir
+        }, 500);
     });
 }
 
@@ -65,7 +64,6 @@ async function loadStats() {
 // Cargar acciones
 async function loadStocks() {
     try {
-        // Construir URL con filtros
         let url = `${BASE_PATH}/api/stocks?limit=${LIMIT}&offset=${currentOffset}`;
         
         if (currentStage !== 'all') {
@@ -79,11 +77,10 @@ async function loadStocks() {
         const response = await fetch(url);
         const data = await response.json();
         
-        // Actualizar contador de resultados
         document.getElementById('results-count').textContent = 
             `Mostrando ${data.stocks.length} de ${data.total} acciones`;
         
-        const tbody = document.getElementById('stocks-table');
+        const tbody = document.getElementById('stocks-tbody');
         tbody.innerHTML = '';
         
         if (data.stocks.length === 0) {
@@ -92,7 +89,6 @@ async function loadStocks() {
             return;
         }
         
-        // Renderizar tabla
         data.stocks.forEach(stock => {
             const row = document.createElement('tr');
             
@@ -116,8 +112,22 @@ async function loadStocks() {
             tbody.appendChild(row);
         });
         
-        // Renderizar paginación
         renderPagination(data.total, data.offset);
+        
+        // Inicializar ordenación
+        requestAnimationFrame(() => {
+            if (typeof initTableSort === 'function') {
+                initTableSort('stocks-table', [
+                    { index: 0, type: 'string' },
+                    { index: 1, type: 'string' },
+                    { index: 2, type: 'string' },
+                    { index: 3, type: 'number' },
+                    { index: 4, type: 'currency' },
+                    { index: 5, type: 'currency' },
+                    { index: 6, type: 'percentage' }
+                ]);
+            }
+        });
         
     } catch (error) {
         console.error('Error cargando acciones:', error);
@@ -126,7 +136,6 @@ async function loadStocks() {
     }
 }
 
-// Obtener badge de etapa
 function getStageBadge(stage) {
     const colors = {
         1: '#6c757d',
@@ -145,7 +154,6 @@ function getStageBadge(stage) {
     return `<span class="badge" style="background-color: ${colors[stage] || '#6c757d'}20; color: ${colors[stage] || '#6c757d'}; border: 1px solid ${colors[stage] || '#6c757d'};">Etapa ${stage} - ${names[stage]}</span>`;
 }
 
-// Renderizar paginación
 function renderPagination(total, offset) {
     const pagination = document.getElementById('pagination');
     
@@ -159,15 +167,12 @@ function renderPagination(total, offset) {
     
     let html = '<div style="display: inline-flex; gap: 0.5rem;">';
     
-    // Botón anterior
     if (currentPage > 1) {
         html += `<button class="btn btn-primary" onclick="changePage(${currentPage - 2})">← Anterior</button>`;
     }
     
-    // Info de página
     html += `<span style="padding: 0.5rem 1rem; background: #f3f4f6; border-radius: 0.375rem;">Página ${currentPage} de ${totalPages}</span>`;
     
-    // Botón siguiente
     if (currentPage < totalPages) {
         html += `<button class="btn btn-primary" onclick="changePage(${currentPage})">Siguiente →</button>`;
     }
@@ -177,14 +182,12 @@ function renderPagination(total, offset) {
     pagination.innerHTML = html;
 }
 
-// Cambiar página
 function changePage(page) {
     currentOffset = page * LIMIT;
     loadStocks();
     window.scrollTo(0, 0);
 }
 
-// Utilidades
 function truncate(str, maxLength) {
     if (str.length <= maxLength) return str;
     return str.substr(0, maxLength) + '...';

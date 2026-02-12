@@ -45,7 +45,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table>
+                    <table id="watchlist-table">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -57,7 +57,7 @@
                                 <th>Pendiente MA30</th>
                             </tr>
                         </thead>
-                        <tbody id="watchlist-table">
+                        <tbody id="watchlist-tbody">
                             <tr>
                                 <td colspan="7" class="text-center">Cargando...</td>
                             </tr>
@@ -78,6 +78,7 @@
     <script>
         window.BASE_PATH = "{{ base_path }}";
     </script>
+    <script src="{{ base_path }}/static/table-sort.js"></script>
     <script src="{{ base_path }}/static/watchlist.js"></script>
 </body>
 </html>

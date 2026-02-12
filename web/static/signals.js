@@ -13,10 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Configurar filtros
 function setupFilters() {
-    // Filtros de tipo
     document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Actualizar botones activos
             document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
@@ -25,10 +23,8 @@ function setupFilters() {
         });
     });
     
-    // Filtros de días
     document.querySelectorAll('.filter-btn[data-days]').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Actualizar botones activos
             document.querySelectorAll('.filter-btn[data-days]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
@@ -41,7 +37,6 @@ function setupFilters() {
 // Cargar señales
 async function loadSignals() {
     try {
-        // Construir URL con filtros
         let url = `${BASE_PATH}/api/signals?days=${currentDays}&limit=100`;
         if (currentFilter !== 'all') {
             url += `&signal_type=${currentFilter}`;
@@ -50,10 +45,9 @@ async function loadSignals() {
         const response = await fetch(url);
         const data = await response.json();
         
-        // Actualizar estadísticas
         updateStats(data.signals);
         
-        const tbody = document.getElementById('signals-table');
+        const tbody = document.getElementById('signals-tbody');
         tbody.innerHTML = '';
         
         if (data.signals.length === 0) {
@@ -61,7 +55,6 @@ async function loadSignals() {
             return;
         }
         
-        // Renderizar tabla
         data.signals.forEach(signal => {
             const row = document.createElement('tr');
             
@@ -80,6 +73,21 @@ async function loadSignals() {
             tbody.appendChild(row);
         });
         
+        // Inicializar ordenación
+        requestAnimationFrame(() => {
+            if (typeof initTableSort === 'function') {
+                initTableSort('signals-table', [
+                    { index: 0, type: 'date' },
+                    { index: 1, type: 'string' },
+                    { index: 2, type: 'string' },
+                    { index: 3, type: 'string' },
+                    { index: 4, type: 'string' },
+                    { index: 5, type: 'currency' },
+                    { index: 6, type: 'currency' }
+                ]);
+            }
+        });
+        
     } catch (error) {
         console.error('Error cargando señales:', error);
         document.getElementById('signals-table').innerHTML = 
@@ -87,7 +95,6 @@ async function loadSignals() {
     }
 }
 
-// Actualizar estadísticas
 function updateStats(signals) {
     const buyCount = signals.filter(s => s.type === 'BUY').length;
     const sellCount = signals.filter(s => s.type === 'SELL').length;
@@ -97,7 +104,6 @@ function updateStats(signals) {
     document.getElementById('sell-signals').textContent = sellCount;
 }
 
-// Utilidades
 function formatDate(dateString) {
     const date = new Date(dateString);
     const options = { year: 'numeric', month: 'short', day: 'numeric' };

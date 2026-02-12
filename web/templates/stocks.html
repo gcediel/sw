@@ -93,7 +93,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table>
+                    <table id="stocks-table">
                         <thead>
                             <tr>
                                 <th>Ticker</th>
@@ -105,7 +105,7 @@
                                 <th>Pendiente MA30</th>
                             </tr>
                         </thead>
-                        <tbody id="stocks-table">
+                        <tbody id="stocks-tbody">
                             <tr>
                                 <td colspan="7" class="text-center">Cargando...</td>
                             </tr>
@@ -129,6 +129,7 @@
     <script>
         window.BASE_PATH = "{{ base_path }}";
     </script>
+    <script src="{{ base_path }}/static/table-sort.js"></script>
     <script src="{{ base_path }}/static/stocks.js"></script>
 </body>
 </html>

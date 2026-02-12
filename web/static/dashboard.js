@@ -1,6 +1,5 @@
 // Sistema Weinstein - Dashboard JavaScript
 
-// BASE_PATH viene del servidor (inyectado en HTML)
 const BASE_PATH = window.BASE_PATH || '';
 
 // Cargar datos al iniciar la página
@@ -74,6 +73,20 @@ async function loadRecentSignals() {
             tbody.appendChild(row);
         });
         
+        // Inicializar ordenación (asegurar que el DOM está actualizado)
+        requestAnimationFrame(() => {
+            if (typeof initTableSort === 'function') {
+                initTableSort('recent-signals-table', [
+                    { index: 0, type: 'string' },
+                    { index: 1, type: 'string' },
+                    { index: 2, type: 'date' },
+                    { index: 3, type: 'string' },
+                    { index: 4, type: 'string' },
+                    { index: 5, type: 'currency' }
+                ]);
+            }
+        });
+        
     } catch (error) {
         console.error('Error cargando señales:', error);
     }
@@ -109,6 +122,19 @@ async function loadTopStage2() {
                 <td class="${slopeClass}">${slopePercent > 0 ? '+' : ''}${slopePercent}%</td>
             `;
             tbody.appendChild(row);
+        });
+        
+        // Inicializar ordenación (asegurar que el DOM está actualizado)
+        requestAnimationFrame(() => {
+            if (typeof initTableSort === 'function') {
+                initTableSort('top-stage2-table', [
+                    { index: 0, type: 'number' },
+                    { index: 1, type: 'string' },
+                    { index: 2, type: 'string' },
+                    { index: 3, type: 'currency' },
+                    { index: 4, type: 'percentage' }
+                ]);
+            }
         });
         
     } catch (error) {
