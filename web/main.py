@@ -47,7 +47,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         # Verificar sesión
         if not request.session.get("authenticated"):
-            return RedirectResponse(url="/login", status_code=302)
+            return RedirectResponse(url=f"{BASE_PATH}/login", status_code=302)
         return await call_next(request)
 
 # Orden: AuthMiddleware se añade después → se ejecuta después de SessionMiddleware
@@ -63,7 +63,7 @@ templates = Jinja2Templates(directory="web/templates")
 async def login_page(request: Request):
     """Página de login"""
     if request.session.get("authenticated"):
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url=f"{BASE_PATH}/", status_code=302)
     return templates.TemplateResponse("login.html", {
         "request": request,
         "base_path": BASE_PATH,
@@ -76,7 +76,7 @@ async def login_post(request: Request, password: str = Form(...)):
     """Procesar login"""
     if verify_password(password):
         request.session["authenticated"] = True
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url=f"{BASE_PATH}/", status_code=303)
     return templates.TemplateResponse("login.html", {
         "request": request,
         "base_path": BASE_PATH,
@@ -88,7 +88,7 @@ async def login_post(request: Request, password: str = Form(...)):
 async def logout(request: Request):
     """Cerrar sesión"""
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=302)
+    return RedirectResponse(url=f"{BASE_PATH}/login", status_code=302)
 
 
 @app.get("/admin", response_class=HTMLResponse)
