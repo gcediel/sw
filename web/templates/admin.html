@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Weinstein - Administración</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>Sistema Weinstein</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ base_path }}/">Dashboard</a>
+                <a href="{{ base_path }}/stocks">Acciones</a>
+                <a href="{{ base_path }}/signals">Señales</a>
+                <a href="{{ base_path }}/watchlist">Watchlist</a>
+                <a href="{{ base_path }}/admin" class="active">Admin</a>
+                <a href="{{ base_path }}/logout">Salir</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>Administración</h2>
+            <p class="subtitle">Cambiar contraseña de acceso</p>
+        </div>
+
+        {% if success %}
+        <div class="alert alert-success">{{ success }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Cambiar contraseña</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ base_path }}/admin/change-password" class="admin-form">
+                    <div class="form-group">
+                        <label for="current_password">Contraseña actual</label>
+                        <input type="password" name="current_password" id="current_password" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_password">Nueva contraseña</label>
+                        <input type="password" name="new_password" id="new_password" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_password">Confirmar nueva contraseña</label>
+                        <input type="password" name="confirm_password" id="confirm_password" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Cambiar contraseña</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Sistema Weinstein v0.3.0 - Análisis Técnico</p>
+        </div>
+    </footer>
+</body>
+</html>
