@@ -11,6 +11,7 @@ sys.path.insert(0, '/home/stanweinstein')
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -141,6 +142,145 @@ async def change_password(
         "success": "Contraseña cambiada correctamente",
         "error": None
     })
+
+
+# ============================================
+# API ENDPOINTS - ADMIN STOCKS CRUD
+# ============================================
+
+class StockCreate(BaseModel):
+    ticker: str
+    name: str = ""
+    exchange: str = ""
+
+class StockUpdate(BaseModel):
+    name: str = None
+    exchange: str = None
+    active: bool = None
+
+
+def detect_exchange(ticker: str) -> str:
+    """Detectar mercado a partir del sufijo del ticker"""
+    if "." in ticker:
+        suffix = ticker.split(".")[-1].upper()
+        if suffix == "MC":
+            return "BME"
+        return suffix
+    return "NASDAQ"
+
+
+@app.get("/api/admin/stocks")
+async def api_admin_stocks():
+    """Lista todas las acciones (activas e inactivas)"""
+    db = SessionLocal()
+    try:
+        stocks = db.query(Stock).order_by(Stock.ticker).all()
+        return {
+            "stocks": [
+                {
+                    "id": s.id,
+                    "ticker": s.ticker,
+                    "name": s.name or "",
+                    "exchange": s.exchange or "",
+                    "active": s.active,
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                }
+                for s in stocks
+            ]
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.post("/api/admin/stocks")
+async def api_admin_stock_create(data: StockCreate):
+    """Crear nueva accion"""
+    db = SessionLocal()
+    try:
+        ticker = data.ticker.strip().upper()
+        if not ticker:
+            return JSONResponse(status_code=400, content={"error": "El ticker es obligatorio"})
+
+        existing = db.query(Stock).filter(Stock.ticker == ticker).first()
+        if existing:
+            return JSONResponse(status_code=400, content={"error": f"El ticker {ticker} ya existe"})
+
+        exchange = data.exchange.strip() if data.exchange.strip() else detect_exchange(ticker)
+        stock = Stock(
+            ticker=ticker,
+            name=data.name.strip() or ticker,
+            exchange=exchange,
+            active=True,
+        )
+        db.add(stock)
+        db.commit()
+        db.refresh(stock)
+
+        return {
+            "id": stock.id,
+            "ticker": stock.ticker,
+            "name": stock.name,
+            "exchange": stock.exchange,
+            "active": stock.active,
+        }
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.put("/api/admin/stocks/{stock_id}")
+async def api_admin_stock_update(stock_id: int, data: StockUpdate):
+    """Editar accion existente"""
+    db = SessionLocal()
+    try:
+        stock = db.query(Stock).filter(Stock.id == stock_id).first()
+        if not stock:
+            return JSONResponse(status_code=404, content={"error": "Accion no encontrada"})
+
+        if data.name is not None:
+            stock.name = data.name.strip()
+        if data.exchange is not None:
+            stock.exchange = data.exchange.strip()
+        if data.active is not None:
+            stock.active = data.active
+
+        db.commit()
+        return {
+            "id": stock.id,
+            "ticker": stock.ticker,
+            "name": stock.name,
+            "exchange": stock.exchange,
+            "active": stock.active,
+        }
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.delete("/api/admin/stocks/{stock_id}")
+async def api_admin_stock_delete(stock_id: int):
+    """Eliminar accion y todos sus datos historicos"""
+    db = SessionLocal()
+    try:
+        stock = db.query(Stock).filter(Stock.id == stock_id).first()
+        if not stock:
+            return JSONResponse(status_code=404, content={"error": "Accion no encontrada"})
+
+        ticker = stock.ticker
+        db.delete(stock)
+        db.commit()
+        return {"message": f"Accion {ticker} eliminada correctamente"}
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
 
 
 # ============================================
