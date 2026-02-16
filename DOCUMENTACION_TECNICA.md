@@ -374,7 +374,7 @@ La aplicacion usa sesiones con cookie firmada:
 
 | Endpoint | Parametros | Descripcion |
 |----------|------------|-------------|
-| `GET /api/dashboard/stats` | - | Estadisticas: total acciones, distribucion por etapas, senales recientes |
+| `GET /api/dashboard/stats` | - | Estadisticas: total acciones, distribucion por etapas, senales recientes, acciones no actualizadas (diario/semanal) |
 | `GET /api/stocks` | stage, search, limit, offset | Lista paginada de acciones con filtros |
 | `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC), senales |
 | `GET /api/signals` | signal_type, days, limit | Senales recientes con filtros |
@@ -389,7 +389,7 @@ La aplicacion usa sesiones con cookie firmada:
 
 Cada pagina tiene su fichero JS que consume la API y actualiza el DOM:
 
-- **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes y top acciones en Etapa 2
+- **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes, top acciones en Etapa 2 e indicadores de acciones no actualizadas (badges verde/amarillo para datos diarios y semanales)
 - **stocks.js** - Filtrado por etapa, busqueda por ticker/nombre, paginacion
 - **stock_detail.js** - Grafico de velas japonesas (OHLC) con MA30 superpuesta usando Lightweight Charts, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas y senales
 - **signals.js** - Filtros por tipo (BUY/SELL) y periodo (30/90/180/365 dias)
