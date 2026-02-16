@@ -1,10 +1,12 @@
-// Sistema Weinstein - Stock Detail JavaScript
+// Sistema Weinstein - Stock Detail JavaScript (Lightweight Charts)
 
 const BASE_PATH = window.BASE_PATH || '';
 const TICKER = window.TICKER;
 
-let chartInstance = null;
-let fullHistoryData = null; // Guardar datos completos
+let chart = null;
+let candleSeries = null;
+let ma30Series = null;
+let fullHistoryData = null;
 
 // Cargar datos al iniciar
 document.addEventListener('DOMContentLoaded', function() {
@@ -15,42 +17,42 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadStockDetail() {
     try {
         const response = await fetch(`${BASE_PATH}/api/stock/${TICKER}`);
-        
+
         if (!response.ok) {
             throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Guardar datos completos para filtrado posterior
         fullHistoryData = data.history;
-        
+
         // Mostrar contenido
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
-        
+
         // Actualizar título
         document.getElementById('page-title').textContent = `${data.ticker} - Sistema Weinstein`;
         document.getElementById('stock-title').textContent = data.ticker;
         document.getElementById('stock-name').textContent = data.name;
-        
+
         // Mostrar información actual
         displayCurrentInfo(data.current);
-        
+
         // Crear gráfico por defecto (1 año = 52 semanas)
         loadChart(52);
-        
+
         // Mostrar señales
         displaySignals(data.signals);
-        
+
         // Mostrar historial de etapas
         displayStageHistory(data.history);
-        
+
     } catch (error) {
         console.error('Error cargando acción:', error);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error').style.display = 'block';
-        document.getElementById('error-message').textContent = 
+        document.getElementById('error-message').textContent =
             `No se pudo cargar la información de ${TICKER}. ${error.message}`;
     }
 }
@@ -58,53 +60,160 @@ async function loadStockDetail() {
 // Cargar gráfico con período específico
 function loadChart(weeks) {
     if (!fullHistoryData) return;
-    
+
     // Filtrar datos según período
     let filteredData = fullHistoryData;
     if (weeks > 0 && fullHistoryData.length > weeks) {
         filteredData = fullHistoryData.slice(-weeks);
     }
-    
+
     // Actualizar botones activos
     document.querySelectorAll('.period-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
-    // Marcar botón correspondiente como activo
+
     const buttonTexts = {
         26: '6M',
         52: '1A',
         104: '2A',
         0: 'Todo'
     };
-    
-    const buttons = document.querySelectorAll('.period-btn');
-    buttons.forEach(btn => {
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
         if (btn.textContent === buttonTexts[weeks]) {
             btn.classList.add('active');
         }
     });
-    
-    // Crear/actualizar gráfico
+
     createChart(filteredData);
+}
+
+// Crear gráfico con Lightweight Charts
+function createChart(history) {
+    const container = document.getElementById('priceChart');
+
+    // Destruir gráfico anterior si existe
+    if (chart) {
+        chart.remove();
+        chart = null;
+    }
+
+    // Crear chart
+    chart = LightweightCharts.createChart(container, {
+        autoSize: true,
+        layout: {
+            background: { type: 'solid', color: '#ffffff' },
+            textColor: '#333',
+            fontFamily: "'Segoe UI', sans-serif",
+        },
+        grid: {
+            vertLines: { color: '#f0f0f0' },
+            horzLines: { color: '#f0f0f0' },
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        rightPriceScale: {
+            borderColor: '#d1d5db',
+        },
+        timeScale: {
+            borderColor: '#d1d5db',
+            timeVisible: false,
+        },
+    });
+
+    // Serie de velas
+    candleSeries = chart.addSeries(
+        LightweightCharts.CandlestickSeries,
+        {
+            upColor: '#22c55e',
+            downColor: '#ef4444',
+            borderDownColor: '#ef4444',
+            borderUpColor: '#22c55e',
+            wickDownColor: '#ef4444',
+            wickUpColor: '#22c55e',
+        }
+    );
+
+    // Serie de línea MA30
+    ma30Series = chart.addSeries(
+        LightweightCharts.LineSeries,
+        {
+            color: '#f59e0b',
+            lineWidth: 2,
+            crosshairMarkerVisible: false,
+            priceLineVisible: false,
+            lastValueVisible: false,
+        }
+    );
+
+    // Preparar datos de velas
+    const candleData = history
+        .filter(h => h.open !== null && h.high !== null && h.low !== null)
+        .map(h => ({
+            time: h.week_end_date,
+            open: h.open,
+            high: h.high,
+            low: h.low,
+            close: h.close,
+        }));
+
+    // Preparar datos MA30
+    const ma30Data = history
+        .filter(h => h.ma30 !== null)
+        .map(h => ({
+            time: h.week_end_date,
+            value: h.ma30,
+        }));
+
+    candleSeries.setData(candleData);
+    ma30Series.setData(ma30Data);
+
+    // Ajustar vista
+    chart.timeScale().fitContent();
+
+    // Leyenda con tooltip
+    const legendEl = document.createElement('div');
+    legendEl.style.cssText = 'position:absolute;top:8px;left:12px;z-index:2;font-size:13px;font-family:sans-serif;color:#333;pointer-events:none;';
+    container.style.position = 'relative';
+    container.appendChild(legendEl);
+
+    function updateLegend(param) {
+        if (!param || !param.time) {
+            legendEl.innerHTML = '';
+            return;
+        }
+        const candle = param.seriesData.get(candleSeries);
+        const ma = param.seriesData.get(ma30Series);
+        if (!candle) return;
+
+        const color = candle.close >= candle.open ? '#22c55e' : '#ef4444';
+        let html = `<span style="color:${color}">O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)}</span>`;
+        if (ma) {
+            html += ` <span style="color:#f59e0b">MA30:${ma.value.toFixed(2)}</span>`;
+        }
+        legendEl.innerHTML = html;
+    }
+
+    chart.subscribeCrosshairMove(updateLegend);
 }
 
 // Mostrar información actual
 function displayCurrentInfo(current) {
     // Etapa
     const stageName = getStageInfo(current.stage);
-    document.getElementById('current-stage').innerHTML = 
+    document.getElementById('current-stage').innerHTML =
         `<span style="font-size: 3rem;">${current.stage}</span><br>${stageName.name}`;
-    document.getElementById('current-stage').parentElement.parentElement.style.borderLeft = 
+    document.getElementById('current-stage').parentElement.parentElement.style.borderLeft =
         `4px solid ${stageName.color}`;
-    
+
     // Precio
     document.getElementById('current-price').textContent = `$${current.price.toFixed(2)}`;
-    
+
     // MA30
-    document.getElementById('current-ma30').textContent = 
+    document.getElementById('current-ma30').textContent =
         current.ma30 ? `$${current.ma30.toFixed(2)}` : 'N/A';
-    
+
     // Distancia MA30
     if (current.distance_from_ma30 !== null) {
         const distance = current.distance_from_ma30;
@@ -114,7 +223,7 @@ function displayCurrentInfo(current) {
     } else {
         document.getElementById('current-distance').textContent = 'N/A';
     }
-    
+
     // Pendiente MA30
     if (current.ma30_slope !== null) {
         const slope = current.ma30_slope * 100;
@@ -124,122 +233,26 @@ function displayCurrentInfo(current) {
     } else {
         document.getElementById('current-slope').textContent = 'N/A';
     }
-    
+
     // Última actualización
     document.getElementById('last-update').textContent = formatDate(current.week_end_date);
-}
-
-// Crear gráfico con Chart.js
-function createChart(history) {
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    
-    // Preparar datos
-    const labels = history.map(h => formatDateShort(h.week_end_date));
-    const prices = history.map(h => h.close);
-    const ma30 = history.map(h => h.ma30);
-    
-    // Colores por etapa para el fondo
-    const backgroundColors = history.map(h => {
-        const info = getStageInfo(h.stage);
-        return info.color + '10'; // Añadir transparencia
-    });
-    
-    // Destruir gráfico anterior si existe
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-    
-    // Crear gráfico
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Precio',
-                    data: prices,
-                    borderColor: '#2563eb',
-                    backgroundColor: backgroundColors,
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    fill: true,
-                    tension: 0.1
-                },
-                {
-                    label: 'MA30',
-                    data: ma30,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    pointHoverRadius: 3,
-                    fill: false,
-                    tension: 0.1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            label += '$' + context.parsed.y.toFixed(2);
-                            return label;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + value.toFixed(0);
-                        }
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                }
-            }
-        }
-    });
 }
 
 // Mostrar señales
 function displaySignals(signals) {
     const container = document.getElementById('signals-list');
-    
+
     if (signals.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #6c757d;">No hay señales generadas para esta acción</p>';
         return;
     }
-    
+
     let html = '<div style="display: flex; flex-direction: column; gap: 1rem;">';
-    
+
     signals.forEach(signal => {
         const badgeClass = signal.type === 'BUY' ? 'badge-buy' : 'badge-sell';
         const icon = signal.type === 'BUY' ? '🟢' : '🔴';
-        
+
         html += `
             <div style="padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid ${signal.type === 'BUY' ? '#10b981' : '#ef4444'};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
@@ -253,7 +266,7 @@ function displaySignals(signals) {
             </div>
         `;
     });
-    
+
     html += '</div>';
     container.innerHTML = html;
 }
@@ -261,11 +274,11 @@ function displaySignals(signals) {
 // Mostrar historial de etapas
 function displayStageHistory(history) {
     const container = document.getElementById('stage-history');
-    
+
     // Detectar cambios de etapa
     const changes = [];
     let previousStage = null;
-    
+
     history.forEach((week, index) => {
         if (week.stage !== previousStage) {
             changes.push({
@@ -277,21 +290,21 @@ function displayStageHistory(history) {
             previousStage = week.stage;
         }
     });
-    
+
     if (changes.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #6c757d;">Sin cambios de etapa en el período</p>';
         return;
     }
-    
+
     // Mostrar últimos 10 cambios
     const recentChanges = changes.slice(-10).reverse();
-    
+
     let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
-    
+
     recentChanges.forEach(change => {
         const stageInfo = getStageInfo(change.stage);
         const arrow = change.previous !== null ? `Etapa ${change.previous} → ${change.stage}` : `Etapa ${change.stage}`;
-        
+
         html += `
             <div style="padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid ${stageInfo.color};">
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${arrow}</div>
@@ -300,7 +313,7 @@ function displayStageHistory(history) {
             </div>
         `;
     });
-    
+
     html += '</div>';
     container.innerHTML = html;
 }

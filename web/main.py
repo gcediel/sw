@@ -539,10 +539,10 @@ async def get_stock_detail(ticker: str):
                 content={'error': f'No hay datos semanales para {ticker}'}
             )
 
-        # Historial últimas 30 semanas
+        # Historial últimas 104 semanas (2 años)
         history = db.query(WeeklyData).filter(
             WeeklyData.stock_id == stock.id
-        ).order_by(desc(WeeklyData.week_end_date)).limit(30).all()
+        ).order_by(desc(WeeklyData.week_end_date)).limit(104).all()
 
         history.reverse()  # Orden cronológico
 
@@ -566,6 +566,9 @@ async def get_stock_detail(ticker: str):
             'history': [
                 {
                     'week_end_date': w.week_end_date.isoformat(),
+                    'open': float(w.open) if w.open else None,
+                    'high': float(w.high) if w.high else None,
+                    'low': float(w.low) if w.low else None,
                     'close': float(w.close),
                     'ma30': float(w.ma30) if w.ma30 else None,
                     'stage': w.stage

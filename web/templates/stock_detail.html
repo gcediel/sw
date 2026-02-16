@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">Detalle - Sistema Weinstein</title>
     <link rel="stylesheet" href="{{ base_path }}/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         /* Estilos para botones de período del gráfico */
         .period-btn {
@@ -135,7 +135,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <canvas id="priceChart" style="max-height: 400px;"></canvas>
+                    <div id="priceChart" style="height: 400px;"></div>
                 </div>
             </div>
 
