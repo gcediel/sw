@@ -14,7 +14,7 @@ Sistema automatizado de análisis técnico basado en la metodología de Stan Wei
 ### Dashboard Web Completo
 - **5 páginas interactivas** con FastAPI
 - **Ordenación por columnas** en todas las tablas
-- **Gráficos interactivos** con selector de período (6M/1A/2A/Todo)
+- **Gráficos de velas japonesas** (Lightweight Charts) con MA30 y selector de período (6M/1A/2A/Todo)
 - **Búsqueda y filtros** en tiempo real
 - **Diseño responsive**
 
@@ -71,7 +71,7 @@ Ver `INSTALACION_WEB.md` para configuración completa del dashboard.
 2. **Acciones** (`/sw/stocks`): Lista completa con búsqueda y filtros
 3. **Señales** (`/sw/signals`): Historial de señales BUY/SELL
 4. **Watchlist** (`/sw/watchlist`): Acciones en Etapa 2
-5. **Detalle** (`/sw/stock/{TICKER}`): Gráfico interactivo y análisis
+5. **Detalle** (`/sw/stock/{TICKER}`): Gráfico de velas OHLC con MA30 superpuesta y análisis
 
 ### Funcionalidades
 
@@ -179,7 +179,7 @@ Ctrl + Shift + Delete
 
 - **Libro**: "Secrets for Profiting in Bull and Bear Markets" - Stan Weinstein
 - **Datos**: Yahoo Finance API
-- **Web**: FastAPI + Chart.js
+- **Web**: FastAPI + Lightweight Charts (TradingView)
 
 ## ⚖️ Licencia
 
