@@ -30,7 +30,7 @@ Sistema de analisis tecnico basado en la metodologia de las 4 etapas de Stan Wei
 - **Base de datos:** MariaDB/MySQL + SQLAlchemy ORM
 - **Fuentes de datos:** TwelveData (primario), yfinance (respaldo)
 - **Notificaciones:** Telegram Bot API
-- **Frontend:** Jinja2 + JavaScript + Chart.js
+- **Frontend:** Jinja2 + JavaScript + Lightweight Charts (TradingView)
 - **Servidor ASGI:** Uvicorn
 - **Proxy inverso:** Apache con mod_proxy
 
@@ -70,17 +70,19 @@ stanweinstein/
 │   ├── main.py                     # FastAPI: rutas, API, middleware
 │   ├── static/
 │   │   ├── style.css               # Estilos CSS
+│   │   ├── favicon.svg             # Icono de velas japonesas
 │   │   ├── dashboard.js            # Logica del dashboard
 │   │   ├── stocks.js               # Logica de lista de acciones
 │   │   ├── signals.js              # Logica de senales
-│   │   ├── stock_detail.js         # Logica de detalle + grafico
+│   │   ├── stock_detail.js         # Logica de detalle + grafico velas
 │   │   ├── watchlist.js            # Logica de watchlist
+│   │   ├── admin.js                # Logica CRUD de acciones
 │   │   └── table-sort.js           # Ordenacion de tablas
 │   └── templates/
 │       ├── login.html              # Pagina de login
 │       ├── dashboard.html          # Dashboard principal
 │       ├── stocks.html             # Lista de acciones
-│       ├── stock_detail.html       # Detalle de accion (con Chart.js)
+│       ├── stock_detail.html       # Detalle de accion (velas japonesas)
 │       ├── signals.html            # Historial de senales
 │       ├── watchlist.html          # Watchlist (Etapa 2)
 │       └── admin.html              # Administracion (cambio contrasena)
@@ -374,7 +376,7 @@ La aplicacion usa sesiones con cookie firmada:
 |----------|------------|-------------|
 | `GET /api/dashboard/stats` | - | Estadisticas: total acciones, distribucion por etapas, senales recientes |
 | `GET /api/stocks` | stage, search, limit, offset | Lista paginada de acciones con filtros |
-| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 30 semanas, senales |
+| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC), senales |
 | `GET /api/signals` | signal_type, days, limit | Senales recientes con filtros |
 | `GET /api/watchlist` | - | Acciones en Etapa 2 ordenadas por pendiente MA30 |
 | `GET /api/health` | - | Estado del servicio |
@@ -389,7 +391,7 @@ Cada pagina tiene su fichero JS que consume la API y actualiza el DOM:
 
 - **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes y top acciones en Etapa 2
 - **stocks.js** - Filtrado por etapa, busqueda por ticker/nombre, paginacion
-- **stock_detail.js** - Grafico de precio+MA30 con Chart.js, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas y senales
+- **stock_detail.js** - Grafico de velas japonesas (OHLC) con MA30 superpuesta usando Lightweight Charts, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas y senales
 - **signals.js** - Filtros por tipo (BUY/SELL) y periodo (30/90/180/365 dias)
 - **watchlist.js** - Carga acciones en Etapa 2 desde `/api/watchlist`
 - **table-sort.js** - Ordenacion de tablas haciendo click en las cabeceras
