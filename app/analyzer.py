@@ -152,13 +152,15 @@ class WeinsteinAnalyzer:
         if not weekly_data:
             logger.debug(f"{ticker}: Sin datos con MA30 para analizar")
             return 0
-        
+
         # Limitar a las últimas N semanas si se especifica
-        if weeks_back > 0:
-            weekly_data = weekly_data[-weeks_back:]
-        
-        processed = 0
         previous_stage = None
+        if weeks_back > 0 and len(weekly_data) > weeks_back:
+            # Obtener la etapa de la semana justo anterior al bloque para tener contexto
+            previous_stage = weekly_data[-(weeks_back + 1)].stage
+            weekly_data = weekly_data[-weeks_back:]
+
+        processed = 0
         
         for week in weekly_data:
             # Detectar etapa
