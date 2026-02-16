@@ -126,6 +126,41 @@ body {
 .stat-card.red { border-left: 4px solid var(--danger-color); }
 .stat-card.blue { border-left: 4px solid var(--primary-color); }
 
+/* Update status row */
+.update-status-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.update-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+
+.update-status-badge.ok {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.update-status-badge.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.update-status-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
 /* Card */
 .card {
     background: white;

@@ -40,7 +40,43 @@ async function loadDashboardStats() {
             const date = new Date(data.last_update);
             document.getElementById('last-update').textContent = formatDate(date);
         }
-        
+
+        // Indicadores de actualización
+        const statusRow = document.getElementById('update-status-row');
+        statusRow.style.display = '';
+
+        // Diario
+        const dailyBadge = document.getElementById('daily-status-badge');
+        const dailyIcon = document.getElementById('daily-status-icon');
+        const dailyText = document.getElementById('daily-status-text');
+        if (data.outdated_daily > 0) {
+            dailyBadge.className = 'update-status-badge warning';
+            dailyIcon.textContent = '⚠️';
+            dailyText.textContent = `${data.outdated_daily} acciones sin datos diarios al ${formatDate(data.last_daily_date)}`;
+        } else {
+            dailyBadge.className = 'update-status-badge ok';
+            dailyIcon.textContent = '✅';
+            dailyText.textContent = data.last_daily_date
+                ? `Datos diarios al día (${formatDate(data.last_daily_date)})`
+                : 'Sin datos diarios';
+        }
+
+        // Semanal
+        const weeklyBadge = document.getElementById('weekly-status-badge');
+        const weeklyIcon = document.getElementById('weekly-status-icon');
+        const weeklyText = document.getElementById('weekly-status-text');
+        if (data.outdated_weekly > 0) {
+            weeklyBadge.className = 'update-status-badge warning';
+            weeklyIcon.textContent = '⚠️';
+            weeklyText.textContent = `${data.outdated_weekly} acciones sin datos semanales al ${formatDate(data.last_weekly_date)}`;
+        } else {
+            weeklyBadge.className = 'update-status-badge ok';
+            weeklyIcon.textContent = '✅';
+            weeklyText.textContent = data.last_weekly_date
+                ? `Datos semanales al día (${formatDate(data.last_weekly_date)})`
+                : 'Sin datos semanales';
+        }
+
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
     }

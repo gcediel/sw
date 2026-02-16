@@ -411,11 +411,43 @@ async def get_dashboard_stats():
         # Última actualización
         last_update = db.query(func.max(DailyData.date)).scalar()
 
+        # Acciones no actualizadas - DIARIO
+        last_daily_date = last_update  # ya calculado arriba
+        if last_daily_date:
+            daily_subq = db.query(
+                DailyData.stock_id,
+                func.max(DailyData.date).label('max_date')
+            ).join(Stock).filter(Stock.active == True).group_by(DailyData.stock_id).subquery()
+
+            outdated_daily = db.query(func.count()).select_from(daily_subq).filter(
+                daily_subq.c.max_date < last_daily_date
+            ).scalar()
+        else:
+            outdated_daily = 0
+
+        # Acciones no actualizadas - SEMANAL
+        last_weekly_date = db.query(func.max(WeeklyData.week_end_date)).scalar()
+        if last_weekly_date:
+            weekly_subq = db.query(
+                WeeklyData.stock_id,
+                func.max(WeeklyData.week_end_date).label('max_date')
+            ).join(Stock).filter(Stock.active == True).group_by(WeeklyData.stock_id).subquery()
+
+            outdated_weekly = db.query(func.count()).select_from(weekly_subq).filter(
+                weekly_subq.c.max_date < last_weekly_date
+            ).scalar()
+        else:
+            outdated_weekly = 0
+
         return {
             'total_stocks': total_stocks,
             'stages': stages,
             'signals_last_week': signals_count,
-            'last_update': last_update.isoformat() if last_update else None
+            'last_update': last_update.isoformat() if last_update else None,
+            'outdated_daily': outdated_daily,
+            'outdated_weekly': outdated_weekly,
+            'last_daily_date': str(last_daily_date) if last_daily_date else None,
+            'last_weekly_date': str(last_weekly_date) if last_weekly_date else None,
         }
 
     finally:
