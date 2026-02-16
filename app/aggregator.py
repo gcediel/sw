@@ -183,7 +183,13 @@ class WeeklyAggregator:
         """
         # Obtener fecha de fin de la última semana completa
         today = datetime.now().date()
-        last_week_end = self.get_week_end_date(today - timedelta(days=7))
+        weekday = today.weekday()  # 0=lun, 4=vie, 5=sab, 6=dom
+        if weekday >= 5:
+            # Sábado/domingo: la semana que acaba de terminar (viernes pasado)
+            last_week_end = self.get_week_end_date(today)
+        else:
+            # Lunes a viernes: la semana anterior completa
+            last_week_end = self.get_week_end_date(today - timedelta(days=7))
         
         # Obtener ticker para logs
         stock = self.db.query(Stock).filter(Stock.id == stock_id).first()
