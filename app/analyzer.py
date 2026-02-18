@@ -107,16 +107,16 @@ class WeinsteinAnalyzer:
         # Etapa 3: Techo/Distribución
         # - Precio cerca de MA30 o ligeramente arriba
         # - MA30 se aplana
-        # - Viene después de Etapa 2
-        if (price_near_ma30 or price_above_ma30) and slope_flat and previous_stage == 2:
+        # - Viene después de Etapa 2 o ya estaba en Etapa 3
+        if (price_near_ma30 or price_above_ma30) and slope_flat and previous_stage in [2, 3]:
             return 3
-        
+
         # Etapa 1: Base/Consolidación
         # - Precio cerca de MA30 o ligeramente abajo
         # - MA30 plana o ligeramente bajista
-        # - Viene después de Etapa 4 o al inicio
+        # - Viene después de Etapa 4, ya estaba en Etapa 1, o al inicio
         if (price_near_ma30 or price_below_ma30) and (slope_flat or slope_down):
-            if previous_stage in [4, None]:
+            if previous_stage in [4, 1, None]:
                 return 1
         
         # Casos ambiguos: mantener etapa anterior o defaultear

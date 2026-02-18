@@ -166,7 +166,8 @@ RETRY_DELAY = 5            # segundos entre reintentos
 # Parametros de analisis Weinstein
 MIN_WEEKS_FOR_ANALYSIS = 35
 VOLUME_SPIKE_THRESHOLD = 1.5
-MA30_SLOPE_THRESHOLD = 0.02
+MA30_SLOPE_THRESHOLD = 0.015
+MAX_PRICE_DISTANCE_FOR_BUY = 0.20
 TRADING_DAYS_PER_WEEK = 5
 ```
 
@@ -301,10 +302,10 @@ Clase `WeinsteinAnalyzer` que implementa la logica de clasificacion por etapas.
 **Logica de deteccion:**
 
 ```
-Etapa 2: precio > MA30 Y pendiente > +2%
-Etapa 4: precio < MA30 Y pendiente < -2%
-Etapa 3: (precio cerca o encima de MA30) Y pendiente plana Y etapa_anterior == 2
-Etapa 1: (precio cerca o debajo de MA30) Y (pendiente plana o bajando)
+Etapa 2: precio > MA30 Y pendiente > +1.5%
+Etapa 4: precio < MA30 Y pendiente < -1.5%
+Etapa 3: (precio cerca o encima de MA30) Y pendiente plana Y etapa_anterior in [2, 3]
+Etapa 1: (precio cerca o debajo de MA30) Y (pendiente plana o bajando) Y etapa_anterior in [4, 1, None]
 ```
 
 **Metodos principales:**
@@ -318,7 +319,7 @@ Etapa 1: (precio cerca o debajo de MA30) Y (pendiente plana o bajando)
 Clase `SignalGenerator` que detecta transiciones entre etapas.
 
 **Tipos de senal:**
-- **BUY:** Etapa 1 → 2 (ruptura alcista)
+- **BUY:** Etapa 1 → 2 (ruptura alcista). Se descarta si el precio esta >20% por encima de la MA30 (`MAX_PRICE_DISTANCE_FOR_BUY`), ya que no seria una ruptura de consolidacion genuina
 - **SELL:** Etapa 2 → 4 o Etapa 3 → 4 (ruptura bajista)
 - **STAGE_CHANGE:** Cualquier otra transicion
 
@@ -510,8 +511,9 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 | Parametro | Valor | Descripcion |
 |-----------|-------|-------------|
 | `MIN_WEEKS_FOR_ANALYSIS` | 35 | Semanas minimas para analizar (30 para MA30 + 5 margen) |
-| `MA30_SLOPE_THRESHOLD` | 0.02 (2%) | Cambio minimo para considerar tendencia |
+| `MA30_SLOPE_THRESHOLD` | 0.015 (1.5%) | Cambio minimo semanal de MA30 para considerar tendencia |
 | `PRICE_MA30_THRESHOLD` | 0.05 (5%) | Distancia maxima para considerar "cerca de MA30" |
+| `MAX_PRICE_DISTANCE_FOR_BUY` | 0.20 (20%) | Distancia maxima precio/MA30 para validar senal BUY |
 | `VOLUME_SPIKE_THRESHOLD` | 1.5 (150%) | Umbral de pico de volumen |
 | `RATE_LIMIT_DELAY` | 2 seg | Pausa entre peticiones API |
 | `MAX_RETRIES` | 3 | Reintentos maximos por peticion |

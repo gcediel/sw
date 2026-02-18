@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.database import Stock, WeeklyData, Signal, SessionLocal
+from app.config import MAX_PRICE_DISTANCE_FOR_BUY
 
 # Configurar logging
 logging.basicConfig(
@@ -93,7 +94,19 @@ class SignalGenerator:
             True si se creó la señal
         """
         signal_type = self.classify_signal(change_info['stage_from'], change_info['stage_to'])
-        
+
+        # Filtro BUY: descartar si el precio está demasiado lejos de MA30
+        # Una ruptura genuina de etapa 1→2 ocurre cerca de la MA30, no a >20%
+        if signal_type == 'BUY':
+            price = change_info.get('price')
+            ma30 = change_info.get('ma30')
+            if price and ma30 and ma30 > 0:
+                distance = (price - ma30) / ma30
+                if distance > MAX_PRICE_DISTANCE_FOR_BUY:
+                    logger.info(f"BUY descartada para stock_id {change_info['stock_id']}: "
+                                f"precio {distance*100:.1f}% sobre MA30 (máx {MAX_PRICE_DISTANCE_FOR_BUY*100:.0f}%)")
+                    return False
+
         # Verificar si ya existe la señal
         existing = self.db.query(Signal).filter(
             and_(
