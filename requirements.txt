@@ -55,4 +55,4 @@ uvloop==0.22.1
 watchfiles==1.1.1
 webencodings==0.5.1
 websockets==15.0.1
-yfinance==0.2.35
+yfinance==1.2.0

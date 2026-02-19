@@ -17,6 +17,7 @@ sys.path.insert(0, '/home/stanweinstein')
 
 import argparse
 from datetime import datetime
+from sqlalchemy import func
 from app.database import SessionLocal, Stock, DailyData
 from app.data_collector import DataCollector
 import logging
@@ -33,37 +34,48 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_stocks_without_data(limit: int = None) -> list:
+def get_stocks_without_data(limit: int = None, min_records: int = 30) -> list:
     """
-    Obtener lista de acciones sin datos históricos
-    
+    Obtener lista de acciones sin datos históricos suficientes.
+
+    Detecta tanto acciones con 0 datos como acciones con muy pocos registros
+    (ej: las que el cron diario "contaminó" con solo 5 días antes de que se
+    cargara el histórico completo).
+
     Args:
         limit: Limitar número de resultados
-    
+        min_records: Mínimo de registros diarios para considerar un stock
+                     con datos suficientes (default: 30 ≈ 6 semanas)
+
     Returns:
         Lista de objetos Stock
     """
     db = SessionLocal()
-    
+
     try:
-        # Subconsulta: IDs de acciones con datos
-        stocks_with_data_ids = db.query(DailyData.stock_id).distinct().subquery()
-        
-        # Acciones activas sin datos
+        # Subconsulta: IDs de acciones con datos SUFICIENTES (>= min_records)
+        stocks_with_enough_data = (
+            db.query(DailyData.stock_id)
+            .group_by(DailyData.stock_id)
+            .having(func.count(DailyData.id) >= min_records)
+            .subquery()
+        )
+
+        # Acciones activas sin datos suficientes (0 registros o muy pocos)
         query = db.query(Stock).filter(
             Stock.active == True,
-            ~Stock.id.in_(stocks_with_data_ids)
+            ~Stock.id.in_(stocks_with_enough_data)
         ).order_by(Stock.ticker)
-        
+
         if limit:
             query = query.limit(limit)
-        
+
         stocks = query.all()
-        
-        logger.info(f"✓ Acciones sin datos encontradas: {len(stocks)}")
-        
+
+        logger.info(f"✓ Acciones con datos insuficientes (< {min_records} días): {len(stocks)}")
+
         return stocks
-        
+
     finally:
         db.close()
 
@@ -191,11 +203,11 @@ def main():
     logger.info("=" * 60)
     
     # Obtener acciones sin datos
-    logger.info("\nObteniendo lista de acciones sin datos...")
+    logger.info("\nObteniendo lista de acciones sin datos suficientes...")
     stocks = get_stocks_without_data(limit=args.limit)
-    
+
     if not stocks:
-        logger.info("\n✓ No hay acciones sin datos. Todo al día.")
+        logger.info("\n✓ No hay acciones sin datos suficientes. Todo al día.")
         sys.exit(0)
     
     # Mostrar resumen
