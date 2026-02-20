@@ -94,11 +94,14 @@ class SignalGenerator:
         Criterios:
         1. Semana anterior: precio < 2% sobre MA30
         2. Semana actual:   precio > 2% sobre MA30 y <= BUY_MAX_DIST_ENTRY
-        3. Últimas BUY_MIN_BASE_WEEKS semanas: precio cerca/bajo MA30 (< 5%)
-           al menos en BUY_MIN_BASE_WEEKS-2 semanas
-        4. Últimas BUY_MIN_BASE_WEEKS semanas: MA30 plana (|slope| <= BUY_MAX_BASE_SLOPE)
+        3. MA30 girando al alza en la semana del cruce (slope > 0)
+        4. Últimas BUY_MIN_BASE_WEEKS semanas: precio dentro del rango [-10%, +5%]
+           respecto a MA30 en al menos BUY_MIN_BASE_WEEKS-2 semanas
+           (filtra acciones en Stage 4 con precio muy por debajo de MA30)
+        5. MA30 no ha caído más de 5% durante la base (no tendencia bajista)
+        6. Últimas BUY_MIN_BASE_WEEKS semanas: MA30 plana (|slope| <= BUY_MAX_BASE_SLOPE)
            al menos en el 75% de las semanas
-        5. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS
+        7. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS
         """
         if idx < MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS:
             return False
@@ -123,13 +126,26 @@ class SignalGenerator:
         if curr_dist > BUY_MAX_DIST_ENTRY:
             return False
 
+        # MA30 debe estar girando al alza en la semana del cruce
+        if not curr.ma30_slope or float(curr.ma30_slope) <= 0:
+            return False
+
         # Validar base previa
         base = weekly_all[idx - BUY_MIN_BASE_WEEKS:idx]
+
+        # Precio dentro del rango [-10%, +5%] de MA30 (no en Stage 4 profunda)
         base_near = sum(
             1 for w in base
             if w.ma30 and float(w.ma30) > 0
-            and (float(w.close) - float(w.ma30)) / float(w.ma30) < 0.05
+            and -0.10 <= (float(w.close) - float(w.ma30)) / float(w.ma30) < 0.05
         )
+
+        # MA30 no debe haber caído más del 5% durante la base (no bajista sostenida)
+        if base[0].ma30 and float(base[0].ma30) > 0:
+            ma30_change = (curr_ma30 - float(base[0].ma30)) / float(base[0].ma30)
+            if ma30_change < -0.05:
+                return False
+
         slopes_flat = sum(
             1 for w in base
             if w.ma30_slope and abs(float(w.ma30_slope)) <= BUY_MAX_BASE_SLOPE
