@@ -36,3 +36,8 @@ MAX_PRICE_DISTANCE_FOR_BUY = 0.20  # 20% máximo sobre MA30 para señal BUY vál
 
 # Días de trading por semana
 TRADING_DAYS_PER_WEEK = 5
+
+# Parámetros señal BUY — cruce precio/MA30 con base sólida
+BUY_MIN_BASE_WEEKS = 16    # semanas mínimas de base previa
+BUY_MAX_BASE_SLOPE = 0.008  # slope MA30 máximo (|slope| ≤ 0.8%) en la base
+BUY_MAX_DIST_ENTRY = 0.15   # distancia máxima precio-MA30 al entrar (15%)
