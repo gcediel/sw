@@ -273,17 +273,24 @@ class SignalGenerator:
         
         return results
     
-    def get_unnotified_signals(self) -> List[dict]:
+    def get_unnotified_signals(self, days: int = 14) -> List[dict]:
         """
-        Obtener señales que aún no han sido notificadas
-        
+        Obtener señales que aún no han sido notificadas (últimos N días)
+
+        Args:
+            days: Ventana máxima de días hacia atrás (default: 14)
+
         Returns:
             Lista de señales pendientes de notificar
         """
+        from datetime import timedelta
+        cutoff_date = datetime.now().date() - timedelta(days=days)
+
         results = self.db.query(Signal, Stock).join(
             Stock, Signal.stock_id == Stock.id
         ).filter(
-            Signal.notified == False
+            Signal.notified == False,
+            Signal.signal_date >= cutoff_date
         ).order_by(Signal.signal_date.desc()).all()
         
         signals = []
