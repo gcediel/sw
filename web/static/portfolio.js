@@ -73,7 +73,7 @@ async function saveBuy() {
         });
         const data = await resp.json();
         if (!resp.ok) {
-            errEl.textContent = data.error || 'Error al guardar';
+            errEl.textContent = data.error || data.detail || 'Error al guardar';
             errEl.style.display = 'block';
             return;
         }
@@ -203,7 +203,7 @@ async function saveStop(id) {
         });
         const data = await resp.json();
         if (!resp.ok) {
-            errEl.textContent = data.error || 'Error al guardar';
+            errEl.textContent = data.error || data.detail || 'Error al guardar';
             errEl.style.display = 'block';
             return;
         }
@@ -270,7 +270,7 @@ async function closePosition(id) {
         });
         const data = await resp.json();
         if (!resp.ok) {
-            errEl.textContent = data.error || 'Error al cerrar posición';
+            errEl.textContent = data.error || data.detail || 'Error al cerrar posición';
             errEl.style.display = 'block';
             return;
         }
@@ -301,7 +301,8 @@ async function deletePosition(id, ticker) {
         const resp = await fetch(`${BASE_PATH}/api/portfolio/${id}`, {method: 'DELETE'});
         const data = await resp.json();
         if (!resp.ok) {
-            showAlert(data.error || 'Error al eliminar', 'error');
+            const msg = data.error || (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
+            showAlert(msg || 'Error al eliminar', 'error');
             return;
         }
         showAlert(`Posición de ${ticker} eliminada`, 'success');
