@@ -203,7 +203,7 @@ function displayCurrentInfo(current) {
     // Etapa
     const stageName = getStageInfo(current.stage);
     document.getElementById('current-stage').innerHTML =
-        `<span style="font-size: 3rem;">${current.stage}</span><br>${stageName.name}`;
+        `<span style="font-size: 3rem;">${current.stage}</span><br><span style="font-size: 0.8rem; font-weight: 500;">${stageName.name}</span>`;
     document.getElementById('current-stage').parentElement.parentElement.style.borderLeft =
         `4px solid ${stageName.color}`;
 
