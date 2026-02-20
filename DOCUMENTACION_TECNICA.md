@@ -18,6 +18,7 @@
 14. [Despliegue en Produccion](#14-despliegue-en-produccion)
 15. [Logs y Monitorizacion](#15-logs-y-monitorizacion)
 16. [Seguridad](#16-seguridad)
+17. [Modulo Cartera (Portfolio)](#17-modulo-cartera-portfolio)
 
 ---
 
@@ -76,6 +77,7 @@ stanweinstein/
 │   │   ├── signals.js              # Logica de senales
 │   │   ├── stock_detail.js         # Logica de detalle + grafico velas
 │   │   ├── watchlist.js            # Logica de watchlist
+│   │   ├── portfolio.js            # Logica de cartera (P&L, formularios)
 │   │   ├── admin.js                # Logica CRUD de acciones
 │   │   └── table-sort.js           # Ordenacion de tablas
 │   └── templates/
@@ -85,6 +87,7 @@ stanweinstein/
 │       ├── stock_detail.html       # Detalle de accion (velas japonesas)
 │       ├── signals.html            # Historial de senales
 │       ├── watchlist.html          # Watchlist (Etapa 2)
+│       ├── portfolio.html          # Cartera: posiciones abiertas e historial
 │       └── admin.html              # Administracion (cambio contrasena)
 ├── data/
 │   └── auth.json                   # Hash de contrasena (NO en git)
@@ -235,6 +238,25 @@ Indice unico: `(stock_id, week_end_date)`
 | ma30 | DECIMAL(12,4) | MA30 en el momento |
 | notified | BOOLEAN | Si se ha notificado via Telegram |
 
+#### Tabla `positions` - Cartera de operaciones
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| id | INT, PK | Identificador |
+| stock_id | INT, FK | Referencia a stocks (CASCADE) |
+| entry_date | DATE | Fecha de compra |
+| entry_price | DECIMAL(12,4) | Precio de entrada |
+| quantity | DECIMAL(12,4) | Numero de acciones |
+| stop_loss | DECIMAL(12,4) | Nivel de stop loss (actualizable) |
+| exit_date | DATE, NULL | Fecha de venta (NULL si abierta) |
+| exit_price | DECIMAL(12,4), NULL | Precio de venta (NULL si abierta) |
+| status | VARCHAR(10) | `OPEN` o `CLOSED` |
+| notes | TEXT, NULL | Notas libres |
+| created_at | DATETIME | Fecha de creacion del registro |
+| updated_at | DATETIME | Ultima modificacion (auto) |
+
+Indice: `idx_position_status (status)`
+
 ---
 
 ## 6. Modulos de la Aplicacion
@@ -243,7 +265,7 @@ Indice unico: `(stock_id, week_end_date)`
 
 Define la conexion a MariaDB y los modelos SQLAlchemy.
 
-**Clases ORM:** `Stock`, `DailyData`, `WeeklyData`, `Signal`
+**Clases ORM:** `Stock`, `DailyData`, `WeeklyData`, `Signal`, `Position`
 
 **Funciones:**
 - `init_db()` - Crea todas las tablas
@@ -365,13 +387,16 @@ La aplicacion usa sesiones con cookie firmada:
 | `/login` | login.html | Formulario de contrasena |
 | `/` | dashboard.html | Dashboard principal con estadisticas |
 | `/stocks` | stocks.html | Lista de acciones con filtros y busqueda |
-| `/stock/{ticker}` | stock_detail.html | Detalle de accion con grafico |
+| `/stock/{ticker}` | stock_detail.html | Detalle de accion con grafico y boton Comprar |
 | `/signals` | signals.html | Historial de senales BUY/SELL |
 | `/watchlist` | watchlist.html | Acciones en Etapa 2 ordenadas por fuerza |
-| `/admin` | admin.html | Cambio de contrasena |
+| `/portfolio` | portfolio.html | Cartera: posiciones abiertas, historial y P&L |
+| `/admin` | admin.html | Cambio de contrasena y gestion de cartera |
 | `/logout` | - | Cierra sesion y redirige a login |
 
 ### Endpoints API (JSON)
+
+#### Acciones, senales y dashboard
 
 | Endpoint | Parametros | Descripcion |
 |----------|------------|-------------|
@@ -381,6 +406,35 @@ La aplicacion usa sesiones con cookie firmada:
 | `GET /api/signals` | signal_type, days, limit | Senales recientes con filtros |
 | `GET /api/watchlist` | - | Acciones en Etapa 2 ordenadas por pendiente MA30 |
 | `GET /api/health` | - | Estado del servicio |
+
+#### Cartera (Portfolio)
+
+| Endpoint | Descripcion |
+|----------|-------------|
+| `GET /api/portfolio` | Posiciones abiertas con P&L calculado en tiempo real (precio diario) |
+| `POST /api/portfolio` | Abrir nueva posicion (body: ticker, entry_date, entry_price, quantity, stop_loss, notes) |
+| `PUT /api/portfolio/{id}` | Actualizar stop_loss y/o notes de una posicion abierta |
+| `POST /api/portfolio/{id}/close` | Cerrar posicion (body: exit_date, exit_price) → pasa a historial |
+| `DELETE /api/portfolio/{id}` | Eliminar posicion (abierta o cerrada) sin registrar cierre |
+| `GET /api/portfolio/history` | Historial de posiciones cerradas con P&L final y total acumulado |
+| `GET /api/portfolio/summary` | Stats globales: posiciones abiertas, capital, P&L abierto, P&L cerrado, P&L global |
+| `DELETE /api/portfolio/history` | Borrar todo el historial de cerradas (irreversible) |
+
+**Calculo de P&L en posiciones abiertas:**
+- Precio actual: ultimo `DailyData.close` disponible (fallback a `WeeklyData.close`)
+- `pnl_eur = (precio_actual - precio_entrada) * cantidad`
+- `pnl_pct = (precio_actual - precio_entrada) / precio_entrada * 100`
+- `dist_stop_pct = (precio_actual - stop_loss) / stop_loss * 100`
+- `stop_triggered = precio_actual <= stop_loss`
+
+#### Administracion CRUD de acciones
+
+| Endpoint | Descripcion |
+|----------|-------------|
+| `GET /api/admin/stocks` | Lista todas las acciones (activas e inactivas) |
+| `POST /api/admin/stocks` | Crear nueva accion |
+| `PUT /api/admin/stocks/{id}` | Editar nombre, mercado o estado activo |
+| `DELETE /api/admin/stocks/{id}` | Eliminar accion y todos sus datos historicos |
 
 ---
 
@@ -392,9 +446,11 @@ Cada pagina tiene su fichero JS que consume la API y actualiza el DOM:
 
 - **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes, top acciones en Etapa 2 e indicadores de acciones no actualizadas (badges verde/amarillo para datos diarios y semanales)
 - **stocks.js** - Filtrado por etapa, busqueda por ticker/nombre, paginacion
-- **stock_detail.js** - Grafico de velas japonesas (OHLC) con MA30 superpuesta usando Lightweight Charts, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas y senales
+- **stock_detail.js** - Grafico de velas japonesas (OHLC) con MA30 superpuesta usando Lightweight Charts, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas, senales y modal de compra rapida pre-relleno con precio y MA30
 - **signals.js** - Filtros por tipo (BUY/SELL) y periodo (30/90/180/365 dias)
 - **watchlist.js** - Carga acciones en Etapa 2 desde `/api/watchlist`
+- **portfolio.js** - Cartera: carga posiciones abiertas con P&L, formularios inline para editar stop loss y cerrar posicion, historial de cerradas, stats globales (P&L abierto / cerrado / global)
+- **admin.js** - CRUD de acciones y borrado de historial de cartera
 - **table-sort.js** - Ordenacion de tablas haciendo click en las cabeceras
 
 ### Estilos CSS (`style.css`)
@@ -432,6 +488,7 @@ Diseno responsive con grid layout y tarjetas.
 2. Para cada accion, descarga los ultimos 5 dias de datos
 3. Inserta o actualiza registros en `daily_data`
 4. Aplica rate limiting entre peticiones a la API
+5. Verifica stop losses de la cartera: si el ultimo precio diario de cualquier posicion abierta esta por debajo de su stop loss, envia alerta via Telegram con ticker, precio, nivel de stop y distancia
 
 **Log:** `/var/log/stanweinstein/daily_update.log`
 
@@ -471,10 +528,11 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 **Orden de ejecucion para puesta en marcha:**
 1. Crear la base de datos con `database_schema.sql`
 2. Configurar `app/config.py` con credenciales
-3. `load_stocks_from_csv.py` (cargar lista de acciones)
-4. `init_historical.py` (descargar historico)
-5. `init_weekly_aggregation.py` (agregar a semanal)
-6. `analyze_initial.py` (detectar etapas)
+3. Ejecutar `python3 -c "from app.database import init_db; init_db()"` para crear todas las tablas (incluyendo `positions`)
+4. `load_stocks_from_csv.py` (cargar lista de acciones)
+5. `init_historical.py` (descargar historico)
+6. `init_weekly_aggregation.py` (agregar a semanal)
+7. `analyze_initial.py` (detectar etapas)
 
 **Anadir nuevas acciones al sistema (despues de la puesta en marcha inicial):**
 1. `load_stocks_from_csv.py` o insercion manual en BD (dar de alta los tickers)
@@ -684,3 +742,51 @@ tail -50 /var/log/stanweinstein/weekly_process.log
 - La aplicacion web solo escucha en `127.0.0.1` (no accesible desde fuera sin proxy)
 - La cookie de sesion esta firmada pero no cifrada
 - Los endpoints API no tienen autenticacion propia (dependen del middleware de sesion)
+
+---
+
+## 17. Modulo Cartera (Portfolio)
+
+### Descripcion
+
+Modulo de seguimiento de operaciones reales integrado en el dashboard. Permite registrar compras, monitorizar el P&L en tiempo real usando el precio diario, actualizar el stop loss, cerrar posiciones y consultar el historico de operaciones cerradas.
+
+### Flujo de uso
+
+1. **Abrir posicion:** desde `/portfolio` (boton "Nueva posicion") o desde la ficha de una accion (boton "+ Comprar", pre-rellena precio y MA30 como stop sugerido)
+2. **Seguimiento:** la pagina `/portfolio` muestra precio actual, P&L en euros y porcentaje, y distancia al stop para cada posicion abierta; las filas con stop activado se resaltan en rojo
+3. **Editar stop:** formulario inline en la misma fila, sin salir de la pagina
+4. **Cerrar posicion:** formulario inline con fecha y precio de venta; la operacion pasa al historial con el P&L final
+5. **Eliminar posicion:** borra el registro directamente sin generar entrada en el historial (util para correcciones de errores de entrada)
+6. **Historial:** pestana separada con todas las operaciones cerradas, P&L por operacion y total acumulado
+7. **Alerta diaria:** el script `daily_update.py` comprueba cada noche si algun precio ha caido bajo su stop loss y envia notificacion Telegram
+
+### Stats en la cabecera de /portfolio
+
+| Tarjeta | Descripcion |
+|---------|-------------|
+| Posiciones abiertas | Numero de operaciones activas |
+| Capital invertido | Suma de (precio_entrada × cantidad) de abiertas |
+| P&L abierto | Beneficio/perdida no realizado de posiciones abiertas |
+| Rentabilidad media abiertas | Media aritmetica del P&L% de posiciones abiertas |
+| P&L cerradas acumulado | Suma de beneficios/perdidas ya realizados |
+| P&L global (todas) | P&L abierto + P&L cerradas |
+
+### Gestion desde Admin
+
+La pagina `/admin` incluye una seccion "Gestion de Cartera" con un boton para borrar todo el historial de operaciones cerradas (con confirmacion). Las posiciones abiertas no se ven afectadas.
+
+### Alerta Telegram de stop loss
+
+La funcion `check_stop_losses(db)` en `daily_update.py` se ejecuta al final de cada actualizacion diaria. Por cada posicion abierta cuyo ultimo precio diario este por debajo del stop loss, envia un mensaje con el siguiente formato:
+
+```
+🚨 ALERTAS STOP LOSS
+
+TICKER
+  Precio: X.XX | Stop: X.XX
+  Distancia: -X.X%
+  Entrada: YYYY-MM-DD @ X.XX
+```
+
+La alerta se repite cada dia mientras la condicion se mantenga (no se marca como notificada).
