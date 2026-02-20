@@ -47,13 +47,13 @@ class TelegramBot:
     def send_message(self, text: str, parse_mode: str = 'HTML'):
         """Enviar mensaje a Telegram"""
         url = f"{self.api_url}/sendMessage"
-        
+
         data = {
             'chat_id': self.chat_id,
             'text': text,
             'parse_mode': parse_mode
         }
-        
+
         try:
             response = requests.post(url, json=data, timeout=10)
             response.raise_for_status()
@@ -62,6 +62,42 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"✗ Error enviando mensaje: {e}")
             return False
+
+    def send_chunked_message(self, text: str, parse_mode: str = 'HTML') -> bool:
+        """Enviar mensaje dividiéndolo en partes si supera 4096 caracteres"""
+        MAX_LENGTH = 4096
+
+        if len(text) <= MAX_LENGTH:
+            return self.send_message(text, parse_mode)
+
+        # Dividir por líneas y agrupar en chunks sin partir bloques
+        lines = text.split('\n')
+        chunks = []
+        current_lines = []
+        current_length = 0
+
+        for line in lines:
+            line_length = len(line) + 1  # +1 por el \n
+            if current_length + line_length > MAX_LENGTH and current_lines:
+                chunks.append('\n'.join(current_lines))
+                current_lines = [line]
+                current_length = line_length
+            else:
+                current_lines.append(line)
+                current_length += line_length
+
+        if current_lines:
+            chunks.append('\n'.join(current_lines))
+
+        logger.info(f"Mensaje dividido en {len(chunks)} partes")
+        success = True
+        for i, chunk in enumerate(chunks, 1):
+            logger.info(f"Enviando parte {i}/{len(chunks)}...")
+            if not self.send_message(chunk, parse_mode):
+                success = False
+                break
+
+        return success
     
     def get_unnotified_signals(self):
         """Obtener señales que no han sido notificadas"""
@@ -222,8 +258,8 @@ class TelegramBot:
         message = self.format_signal_message(signals)
         
         if message:
-            success = self.send_message(message)
-            
+            success = self.send_chunked_message(message)
+
             if success:
                 # Marcar señales como notificadas
                 signal_ids = [s['id'] for s in signals]
