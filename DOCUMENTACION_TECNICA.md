@@ -327,7 +327,7 @@ Clase `SignalGenerator` que detecta transiciones entre etapas.
 - `detect_stage_change(stock_id, current_week, previous_week)` - Detecta cambio
 - `classify_signal(stage_from, stage_to)` - Clasifica tipo de senal
 - `generate_signals_for_all_stocks(weeks_back=10)` - Genera para todas
-- `get_unnotified_signals()` - Obtiene senales pendientes de notificar
+- `get_unnotified_signals(days=14)` - Obtiene senales pendientes de notificar (solo de los ultimos 14 dias, para evitar enviar senales historicas antiguas cuando se incorporan nuevas acciones)
 - `mark_signals_as_notified(signal_ids)` - Marca como notificadas
 
 ### 6.6 `app/auth.py` - Autenticacion
@@ -449,9 +449,9 @@ Diseno responsive con grid layout y tarjetas.
 
 **Cuando:** Sabados a las 08:00
 **Que hace:**
-1. Consulta senales no notificadas
+1. Consulta senales no notificadas (ultimos 14 dias)
 2. Formatea mensaje para cada senal
-3. Envia via Telegram Bot API
+3. Envia via Telegram Bot API (dividiendo en partes si el mensaje supera 4096 caracteres)
 4. Marca las senales como notificadas
 
 ---
@@ -475,6 +475,15 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 4. `init_historical.py` (descargar historico)
 5. `init_weekly_aggregation.py` (agregar a semanal)
 6. `analyze_initial.py` (detectar etapas)
+
+**Anadir nuevas acciones al sistema (despues de la puesta en marcha inicial):**
+1. `load_stocks_from_csv.py` o insercion manual en BD (dar de alta los tickers)
+2. `load_missing_historical.py` (descargar historico de las acciones nuevas)
+3. `init_weekly_aggregation.py` (agregar TODO el historico a semanal — imprescindible para calcular la MA30)
+4. `analyze_initial.py` (detectar etapas en el historico completo)
+5. A partir de aqui, el cron semanal normal ya se encarga del mantenimiento
+
+> **Aviso:** No ejecutar directamente `weekly_process.py` tras cargar nuevas acciones sin antes pasar por los pasos 3 y 4. `weekly_process.py` solo agrega las ultimas 4 semanas, lo que es insuficiente para calcular la MA30 (requiere 30 semanas). El resultado seria que `ma30`, `ma30_slope` y `stage` quedarian en NULL para todas las acciones nuevas.
 
 ---
 
