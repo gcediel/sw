@@ -192,7 +192,21 @@
                 <div class="stat-icon">%</div>
                 <div class="stat-content">
                     <div class="stat-value" id="stat-avg">-</div>
-                    <div class="stat-label">Rentabilidad media</div>
+                    <div class="stat-label">Rentabilidad media abiertas</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-closed-pnl">-</div>
+                    <div class="stat-label">P&L cerradas acumulado</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-global-pnl">-</div>
+                    <div class="stat-label">P&L global (todas)</div>
                 </div>
             </div>
         </div>
@@ -246,10 +260,11 @@
                             <th>Cantidad</th>
                             <th>P&L €</th>
                             <th>P&L %</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="history-tbody">
-                        <tr><td colspan="8" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="9" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>

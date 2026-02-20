@@ -952,14 +952,16 @@ async def api_portfolio_history():
 
 @app.get("/api/portfolio/summary")
 async def api_portfolio_summary():
-    """Estadísticas globales del portfolio"""
+    """Estadísticas globales del portfolio (abiertas + cerradas)"""
     db = SessionLocal()
     try:
         open_positions = db.query(Position).filter(Position.status == 'OPEN').all()
+        closed_positions = db.query(Position).filter(Position.status == 'CLOSED').all()
 
+        # Posiciones abiertas
         total_invested = 0.0
-        total_pnl = 0.0
-        pnl_pcts = []
+        open_pnl = 0.0
+        open_pnl_pcts = []
 
         for pos in open_positions:
             current_price = _get_current_price(db, pos.stock_id)
@@ -969,16 +971,25 @@ async def api_portfolio_summary():
             pnl_eur = (current_price - entry_price) * quantity
             pnl_pct = (current_price - entry_price) / entry_price * 100
             total_invested += invested
-            total_pnl += pnl_eur
-            pnl_pcts.append(pnl_pct)
+            open_pnl += pnl_eur
+            open_pnl_pcts.append(pnl_pct)
 
-        avg_pnl_pct = sum(pnl_pcts) / len(pnl_pcts) if pnl_pcts else 0.0
+        avg_pnl_pct = sum(open_pnl_pcts) / len(open_pnl_pcts) if open_pnl_pcts else 0.0
+
+        # Posiciones cerradas
+        closed_pnl = sum(
+            (float(p.exit_price) - float(p.entry_price)) * float(p.quantity)
+            for p in closed_positions
+        )
 
         return {
             "open_count": len(open_positions),
             "total_invested": round(total_invested, 2),
-            "total_pnl_eur": round(total_pnl, 2),
+            "total_pnl_eur": round(open_pnl, 2),
             "avg_pnl_pct": round(avg_pnl_pct, 2),
+            "closed_count": len(closed_positions),
+            "closed_pnl_eur": round(closed_pnl, 2),
+            "global_pnl_eur": round(open_pnl + closed_pnl, 2),
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -994,6 +1005,24 @@ async def api_portfolio_clear_history():
         deleted = db.query(Position).filter(Position.status == 'CLOSED').delete()
         db.commit()
         return {"message": f"Historial borrado: {deleted} posiciones eliminadas"}
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.delete("/api/portfolio/{position_id}")
+async def api_portfolio_delete(position_id: int):
+    """Eliminar una posición (abierta o cerrada) sin registrar cierre"""
+    db = SessionLocal()
+    try:
+        pos = db.query(Position).filter(Position.id == position_id).first()
+        if not pos:
+            return JSONResponse(status_code=404, content={"error": "Posición no encontrada"})
+        db.delete(pos)
+        db.commit()
+        return {"message": f"Posición {position_id} eliminada"}
     except Exception as e:
         db.rollback()
         return JSONResponse(status_code=500, content={"error": str(e)})

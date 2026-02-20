@@ -138,6 +138,7 @@ function renderOpenPositions(positions) {
             <td style="white-space:nowrap;">
                 <button class="btn btn-sm btn-primary" onclick="openEditStopForm(${p.id}, ${p.stop_loss}, '${esc(p.notes)}')">Editar stop</button>
                 <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="openCloseForm(${p.id}, ${p.current_price})">Cerrar</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
             </td>
         </tr>
         <tr id="inline-${p.id}" style="display:none;">
@@ -294,6 +295,24 @@ function closeActiveInline() {
     activeInlineForm = null;
 }
 
+async function deletePosition(id, ticker) {
+    if (!confirm(`¿Eliminar la posición de ${ticker}? Se borrará definitivamente sin registrar cierre.`)) return;
+    try {
+        const resp = await fetch(`${BASE_PATH}/api/portfolio/${id}`, {method: 'DELETE'});
+        const data = await resp.json();
+        if (!resp.ok) {
+            showAlert(data.error || 'Error al eliminar', 'error');
+            return;
+        }
+        showAlert(`Posición de ${ticker} eliminada`, 'success');
+        loadPortfolio();
+        loadHistory();
+        loadSummary();
+    } catch (e) {
+        showAlert('Error de conexión', 'error');
+    }
+}
+
 // ============================================================
 // HISTORIAL
 // ============================================================
@@ -328,6 +347,9 @@ function renderHistory(positions, totalPnl) {
             <td>${p.quantity}</td>
             <td class="${pnlClass}">${fmtEur(p.pnl_eur)}</td>
             <td class="${pnlClass}">${fmtPct(p.pnl_pct)}</td>
+            <td>
+                <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
+            </td>
         </tr>
         `;
     }).join('');
@@ -336,8 +358,9 @@ function renderHistory(positions, totalPnl) {
     const totalClass = totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
     rows += `
         <tr class="total-row">
-            <td colspan="6" style="text-align:right;">P&L total acumulado:</td>
+            <td colspan="6" style="text-align:right;">P&L total acumulado cerradas:</td>
             <td class="${totalClass}">${fmtEur(totalPnl)}</td>
+            <td></td>
             <td></td>
         </tr>
     `;
@@ -378,6 +401,14 @@ async function loadSummary() {
         const avgEl = document.getElementById('stat-avg');
         avgEl.textContent = fmtPct(data.avg_pnl_pct);
         avgEl.className = 'stat-value ' + (data.avg_pnl_pct >= 0 ? 'pnl-positive' : 'pnl-negative');
+
+        const closedEl = document.getElementById('stat-closed-pnl');
+        closedEl.textContent = fmtEur(data.closed_pnl_eur);
+        closedEl.className = 'stat-value ' + (data.closed_pnl_eur >= 0 ? 'pnl-positive' : 'pnl-negative');
+
+        const globalEl = document.getElementById('stat-global-pnl');
+        globalEl.textContent = fmtEur(data.global_pnl_eur);
+        globalEl.className = 'stat-value ' + (data.global_pnl_eur >= 0 ? 'pnl-positive' : 'pnl-negative');
     } catch (e) {
         // silencioso
     }
