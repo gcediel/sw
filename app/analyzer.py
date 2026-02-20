@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 
 from app.database import Stock, WeeklyData, SessionLocal
-from app.config import MA30_SLOPE_THRESHOLD, VOLUME_SPIKE_THRESHOLD
+from app.config import MA30_SLOPE_THRESHOLD, MA30_SLOPE_ENTRY_THRESHOLD, VOLUME_SPIKE_THRESHOLD
 
 # Configurar logging
 logging.basicConfig(
@@ -33,8 +33,9 @@ class WeinsteinAnalyzer:
     def __init__(self, db: Session):
         self.db = db
         
-        # Umbrales configurables
-        self.ma30_slope_threshold = MA30_SLOPE_THRESHOLD  # 2% por defecto
+        # Umbrales configurables (histéresis: umbral de entrada > umbral de salida)
+        self.ma30_slope_threshold = MA30_SLOPE_THRESHOLD          # 1.5% - umbral de salida (mantenerse)
+        self.ma30_slope_entry_threshold = MA30_SLOPE_ENTRY_THRESHOLD  # 2.5% - umbral de entrada (nueva ruptura)
         self.price_ma30_threshold = 0.05  # 5% de distancia de MA30 para considerar "cerca"
     
     def calculate_price_distance_from_ma30(self, close: float, ma30: float) -> Optional[float]:
@@ -90,19 +91,34 @@ class WeinsteinAnalyzer:
             slope_up = slope > self.ma30_slope_threshold
             slope_down = slope < -self.ma30_slope_threshold
         
-        # DETECCIÓN DE ETAPAS
-        
+        # DETECCIÓN DE ETAPAS (con histéresis para evitar falsas rupturas)
+        #
+        # Histéresis: umbral de ENTRADA (2.5%) > umbral de SALIDA (1.5%)
+        # - Para ENTRAR en Etapa 2/4 desde otra etapa: slope debe superar 2.5%
+        # - Para MANTENERSE en Etapa 2/4: basta con que slope supere 1.5%
+        # Esto evita que acciones con slope oscilando en 1.5–2% generen señales falsas.
+
         # Etapa 2: Tendencia Alcista
-        # - Precio claramente sobre MA30
-        # - MA30 con pendiente alcista
-        if price_above_ma30 and slope_up:
-            return 2
-        
+        if price_above_ma30:
+            if previous_stage == 2:
+                # Ya en Etapa 2: mantener mientras slope > umbral de salida (1.5%)
+                if slope_up:
+                    return 2
+            else:
+                # Entrar en Etapa 2: exige slope fuerte (umbral de entrada 2.5%)
+                if slope is not None and slope > self.ma30_slope_entry_threshold:
+                    return 2
+
         # Etapa 4: Tendencia Bajista
-        # - Precio claramente bajo MA30
-        # - MA30 con pendiente bajista
-        if price_below_ma30 and slope_down:
-            return 4
+        if price_below_ma30:
+            if previous_stage == 4:
+                # Ya en Etapa 4: mantener mientras slope < -umbral de salida (-1.5%)
+                if slope_down:
+                    return 4
+            else:
+                # Entrar en Etapa 4: exige slope bajista fuerte (-2.5%)
+                if slope is not None and slope < -self.ma30_slope_entry_threshold:
+                    return 4
         
         # Etapa 3: Techo/Distribución
         # - Precio cerca de MA30 o ligeramente arriba

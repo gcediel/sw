@@ -17,7 +17,6 @@ import argparse
 import csv
 from datetime import datetime, timedelta
 from app.database import SessionLocal, Stock, WeeklyData, DailyData
-from app.config import MAX_PRICE_DISTANCE_FOR_BUY
 from sqlalchemy import and_
 
 
@@ -136,17 +135,20 @@ def simulate_trade(db, stock_id, ticker, entry_date, entry_price,
 def find_buy_transitions(db):
     """
     Buscar todas las transiciones Etapa 1→2 en weekly_data.
-    Aplica el filtro MAX_PRICE_DISTANCE_FOR_BUY igual que el generador de señales.
+    Para el backtest no se aplica MAX_PRICE_DISTANCE_FOR_BUY porque con la
+    histéresis del 2.5% las transiciones ocurren cuando el precio ya está
+    bastante por encima de MA30, y queremos ver todos los casos históricos.
     """
     stocks = db.query(Stock).filter(Stock.active == True).all()
     transitions = []
 
     for stock in stocks:
+        # No filtrar por ma30 aquí: eliminar filas intermedias rompe
+        # la adyacencia de etapas y hace desaparecer transiciones 1→2
         weekly = db.query(WeeklyData).filter(
             and_(
                 WeeklyData.stock_id == stock.id,
-                WeeklyData.stage.isnot(None),
-                WeeklyData.ma30.isnot(None)
+                WeeklyData.stage.isnot(None)
             )
         ).order_by(WeeklyData.week_end_date.asc()).all()
 
@@ -155,12 +157,10 @@ def find_buy_transitions(db):
             curr = weekly[i]
 
             if prev.stage == 1 and curr.stage == 2:
+                if not curr.ma30:
+                    continue
                 price = float(curr.close)
                 ma30 = float(curr.ma30)
-
-                # Descartar rupturas demasiado alejadas de MA30
-                if ma30 > 0 and (price - ma30) / ma30 > MAX_PRICE_DISTANCE_FOR_BUY:
-                    continue
 
                 transitions.append({
                     'stock_id': stock.id,

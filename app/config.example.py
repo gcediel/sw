@@ -30,7 +30,8 @@ RETRY_DELAY = 5       # segundos entre reintentos
 # Configuración análisis Weinstein
 MIN_WEEKS_FOR_ANALYSIS = 35  # 30 para MA30 + 5 de margen
 VOLUME_SPIKE_THRESHOLD = 1.5  # 150% del volumen promedio
-MA30_SLOPE_THRESHOLD = 0.015  # 1.5% para considerar tendencia significativa
+MA30_SLOPE_THRESHOLD = 0.015        # 1.5% - umbral para SALIR de Etapa 2/4 (histéresis baja)
+MA30_SLOPE_ENTRY_THRESHOLD = 0.025  # 2.5% - umbral para ENTRAR en Etapa 2/4 (histéresis alta)
 MAX_PRICE_DISTANCE_FOR_BUY = 0.20  # 20% máximo sobre MA30 para señal BUY válida
 
 # Días de trading por semana
