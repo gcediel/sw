@@ -98,7 +98,8 @@ class SignalGenerator:
         4. Últimas BUY_MIN_BASE_WEEKS semanas: precio dentro del rango [-10%, +5%]
            respecto a MA30 en al menos BUY_MIN_BASE_WEEKS-2 semanas
            (filtra acciones en Stage 4 con precio muy por debajo de MA30)
-        5. MA30 no ha caído más de 5% durante la base (no tendencia bajista)
+        5. MA30 no ha caído más de 3% durante la base (no tendencia bajista)
+        6. Al menos 3 semanas de la base con precio >= MA30 (oscilación real, no rebote)
         6. Últimas BUY_MIN_BASE_WEEKS semanas: MA30 plana (|slope| <= BUY_MAX_BASE_SLOPE)
            al menos en el 75% de las semanas
         7. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS
@@ -140,11 +141,21 @@ class SignalGenerator:
             and -0.10 <= (float(w.close) - float(w.ma30)) / float(w.ma30) < 0.05
         )
 
-        # MA30 no debe haber caído más del 5% durante la base (no bajista sostenida)
+        # MA30 no debe haber caído más del 3% durante la base (no bajista sostenida)
         if base[0].ma30 and float(base[0].ma30) > 0:
             ma30_change = (curr_ma30 - float(base[0].ma30)) / float(base[0].ma30)
-            if ma30_change < -0.05:
+            if ma30_change < -0.03:
                 return False
+
+        # En una base real (Etapa 1) el precio oscila alrededor de la MA30:
+        # debe haber habido al menos 3 semanas con precio por encima de MA30
+        base_above_ma30 = sum(
+            1 for w in base
+            if w.ma30 and float(w.ma30) > 0
+            and float(w.close) >= float(w.ma30)
+        )
+        if base_above_ma30 < 3:
+            return False
 
         slopes_flat = sum(
             1 for w in base
