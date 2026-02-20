@@ -11,7 +11,7 @@ from sqlalchemy import and_
 
 from app.database import Stock, WeeklyData, Signal, SessionLocal
 from app.config import (
-    BUY_MIN_BASE_WEEKS, BUY_MAX_BASE_SLOPE,
+    BUY_RESISTANCE_WEEKS, BUY_MIN_BASE_WEEKS, BUY_MAX_BASE_SLOPE,
     BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS
 )
 
@@ -89,81 +89,50 @@ class SignalGenerator:
 
     def _is_valid_buy_breakout(self, weekly_all: list, idx: int) -> bool:
         """
-        Verifica si la semana `idx` es un cruce válido de precio sobre MA30.
+        Verifica si la semana `idx` es una ruptura de resistencia válida (Weinstein).
 
         Criterios:
-        1. Semana anterior: precio < 2% sobre MA30
-        2. Semana actual:   precio > 2% sobre MA30 y <= BUY_MAX_DIST_ENTRY
-        3. MA30 girando al alza en la semana del cruce (slope > 0)
-        4. Últimas BUY_MIN_BASE_WEEKS semanas: precio dentro del rango [-10%, +5%]
-           respecto a MA30 en al menos BUY_MIN_BASE_WEEKS-2 semanas
-           (filtra acciones en Stage 4 con precio muy por debajo de MA30)
-        5. MA30 no ha caído más de 3% durante la base (no tendencia bajista)
-        6. Al menos 3 semanas de la base con precio >= MA30 (oscilación real, no rebote)
-        6. Últimas BUY_MIN_BASE_WEEKS semanas: MA30 plana (|slope| <= BUY_MAX_BASE_SLOPE)
-           al menos en el 75% de las semanas
-        7. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS
+        1. Precio supera el máximo de las últimas BUY_RESISTANCE_WEEKS semanas
+           con al menos 1% de margen (ruptura de la resistencia de la base)
+        2. MA30 en subida (slope > 0) en la semana de ruptura
+        3. Precio no demasiado extendido sobre MA30 (<= BUY_MAX_DIST_ENTRY)
+        4. Últimas BUY_MIN_BASE_WEEKS semanas: MA30 plana (|slope| <= BUY_MAX_BASE_SLOPE)
+           en al menos el 75% de las semanas (confirma base sólida previa)
+        5. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + BUY_RESISTANCE_WEEKS
         """
-        if idx < MIN_WEEKS_FOR_ANALYSIS + BUY_MIN_BASE_WEEKS:
+        if idx < MIN_WEEKS_FOR_ANALYSIS + BUY_RESISTANCE_WEEKS:
             return False
 
         curr = weekly_all[idx]
-        prev = weekly_all[idx - 1]
-
-        if not (curr.ma30 and prev.ma30):
+        if not curr.ma30:
             return False
 
         curr_close = float(curr.close)
         curr_ma30  = float(curr.ma30)
-        prev_close = float(prev.close)
-        prev_ma30  = float(prev.ma30)
+        curr_dist  = (curr_close - curr_ma30) / curr_ma30
 
-        curr_dist = (curr_close - curr_ma30) / curr_ma30
-        prev_dist = (prev_close - prev_ma30) / prev_ma30
-
-        # Cruce: de bajo/cerca MA30 a por encima
-        if not (prev_dist < 0.02 and curr_dist > 0.02):
-            return False
+        # No demasiado extendido sobre MA30
         if curr_dist > BUY_MAX_DIST_ENTRY:
             return False
 
-        # MA30 debe estar girando al alza en la semana del cruce
+        # MA30 debe estar en subida en la semana de ruptura
         if not curr.ma30_slope or float(curr.ma30_slope) <= 0:
             return False
 
-        # Validar base previa
-        base = weekly_all[idx - BUY_MIN_BASE_WEEKS:idx]
+        # Nivel de resistencia: máximo cierre de las últimas BUY_RESISTANCE_WEEKS semanas
+        resistance_window = weekly_all[idx - BUY_RESISTANCE_WEEKS:idx]
+        resistance = max(float(w.close) for w in resistance_window)
 
-        # Precio dentro del rango [-10%, +5%] de MA30 (no en Stage 4 profunda)
-        base_near = sum(
-            1 for w in base
-            if w.ma30 and float(w.ma30) > 0
-            and -0.10 <= (float(w.close) - float(w.ma30)) / float(w.ma30) < 0.05
-        )
-
-        # MA30 no debe haber caído más del 3% durante la base (no bajista sostenida)
-        if base[0].ma30 and float(base[0].ma30) > 0:
-            ma30_change = (curr_ma30 - float(base[0].ma30)) / float(base[0].ma30)
-            if ma30_change < -0.03:
-                return False
-
-        # En una base real (Etapa 1) el precio oscila alrededor de la MA30:
-        # debe haber habido al menos 3 semanas con precio por encima de MA30
-        base_above_ma30 = sum(
-            1 for w in base
-            if w.ma30 and float(w.ma30) > 0
-            and float(w.close) >= float(w.ma30)
-        )
-        if base_above_ma30 < 3:
+        # El precio debe superar la resistencia con al menos 1% de margen
+        if curr_close <= resistance * 1.01:
             return False
 
+        # Validar base: MA30 plana en las últimas BUY_MIN_BASE_WEEKS semanas
+        base = weekly_all[idx - BUY_MIN_BASE_WEEKS:idx]
         slopes_flat = sum(
             1 for w in base
             if w.ma30_slope and abs(float(w.ma30_slope)) <= BUY_MAX_BASE_SLOPE
         )
-
-        if base_near < BUY_MIN_BASE_WEEKS - 2:
-            return False
         if slopes_flat < int(BUY_MIN_BASE_WEEKS * 0.75):
             return False
 
