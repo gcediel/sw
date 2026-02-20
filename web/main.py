@@ -17,10 +17,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as date_type
 from sqlalchemy import and_, func, desc
 
-from app.database import SessionLocal, Stock, WeeklyData, Signal, DailyData
+from app.database import SessionLocal, Stock, WeeklyData, Signal, DailyData, Position
 from app.analyzer import WeinsteinAnalyzer
 from app.signals import SignalGenerator
 from app.auth import verify_password, save_password
@@ -341,6 +341,15 @@ async def signals_page(request: Request):
 async def watchlist_page(request: Request):
     """Página de watchlist (Etapa 2)"""
     return templates.TemplateResponse("watchlist.html", {
+        "request": request,
+        "base_path": BASE_PATH
+    })
+
+
+@app.get("/portfolio", response_class=HTMLResponse)
+async def portfolio_page(request: Request):
+    """Página de cartera de posiciones"""
+    return templates.TemplateResponse("portfolio.html", {
         "request": request,
         "base_path": BASE_PATH
     })
@@ -712,6 +721,282 @@ async def get_watchlist():
             'stocks': stocks_sorted
         }
 
+    finally:
+        db.close()
+
+
+# ============================================
+# API ENDPOINTS - PORTFOLIO (CARTERA)
+# ============================================
+
+class PositionCreate(BaseModel):
+    ticker: str
+    entry_date: str        # ISO date "2026-02-20"
+    entry_price: float
+    quantity: float
+    stop_loss: float
+    notes: str = ""
+
+class PositionUpdate(BaseModel):
+    stop_loss: float = None
+    notes: str = None
+
+class PositionClose(BaseModel):
+    exit_date: str
+    exit_price: float
+
+
+def _position_with_pnl(pos: Position, current_price: float) -> dict:
+    """Serializar posición con cálculo de P&L"""
+    entry_price = float(pos.entry_price)
+    quantity = float(pos.quantity)
+    stop_loss = float(pos.stop_loss)
+    invested = entry_price * quantity
+    pnl_eur = (current_price - entry_price) * quantity
+    pnl_pct = (current_price - entry_price) / entry_price * 100
+    dist_stop_pct = (current_price - stop_loss) / stop_loss * 100
+    return {
+        "id": pos.id,
+        "ticker": pos.stock.ticker,
+        "name": pos.stock.name,
+        "entry_date": pos.entry_date.isoformat(),
+        "entry_price": entry_price,
+        "quantity": quantity,
+        "current_price": current_price,
+        "stop_loss": stop_loss,
+        "invested": round(invested, 2),
+        "pnl_eur": round(pnl_eur, 2),
+        "pnl_pct": round(pnl_pct, 2),
+        "dist_stop_pct": round(dist_stop_pct, 2),
+        "stop_triggered": current_price <= stop_loss,
+        "notes": pos.notes or "",
+        "status": pos.status,
+    }
+
+
+def _position_closed_dict(pos: Position) -> dict:
+    """Serializar posición cerrada"""
+    entry_price = float(pos.entry_price)
+    exit_price = float(pos.exit_price)
+    quantity = float(pos.quantity)
+    pnl_eur = (exit_price - entry_price) * quantity
+    pnl_pct = (exit_price - entry_price) / entry_price * 100
+    return {
+        "id": pos.id,
+        "ticker": pos.stock.ticker,
+        "name": pos.stock.name,
+        "entry_date": pos.entry_date.isoformat(),
+        "exit_date": pos.exit_date.isoformat() if pos.exit_date else None,
+        "entry_price": entry_price,
+        "exit_price": exit_price,
+        "quantity": quantity,
+        "invested": round(entry_price * quantity, 2),
+        "pnl_eur": round(pnl_eur, 2),
+        "pnl_pct": round(pnl_pct, 2),
+        "notes": pos.notes or "",
+    }
+
+
+def _get_current_price(db, stock_id: int) -> float:
+    """Obtener último precio diario disponible de un stock"""
+    latest = db.query(DailyData).filter(
+        DailyData.stock_id == stock_id
+    ).order_by(desc(DailyData.date)).first()
+    if latest:
+        return float(latest.close)
+    # fallback a precio semanal
+    latest_w = db.query(WeeklyData).filter(
+        WeeklyData.stock_id == stock_id
+    ).order_by(desc(WeeklyData.week_end_date)).first()
+    if latest_w:
+        return float(latest_w.close)
+    return 0.0
+
+
+@app.get("/api/portfolio")
+async def api_portfolio_open():
+    """Posiciones abiertas con P&L actual"""
+    db = SessionLocal()
+    try:
+        positions = db.query(Position).filter(
+            Position.status == 'OPEN'
+        ).order_by(Position.entry_date.desc()).all()
+
+        result = []
+        for pos in positions:
+            current_price = _get_current_price(db, pos.stock_id)
+            result.append(_position_with_pnl(pos, current_price))
+        return {"positions": result, "total": len(result)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.post("/api/portfolio")
+async def api_portfolio_create(data: PositionCreate):
+    """Abrir nueva posición (compra)"""
+    db = SessionLocal()
+    try:
+        ticker = data.ticker.strip().upper()
+        stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+        if not stock:
+            return JSONResponse(status_code=404, content={"error": f"Ticker {ticker} no encontrado"})
+
+        try:
+            entry_date = date_type.fromisoformat(data.entry_date)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"error": "Formato de fecha inválido (usar YYYY-MM-DD)"})
+
+        if data.entry_price <= 0 or data.quantity <= 0 or data.stop_loss <= 0:
+            return JSONResponse(status_code=400, content={"error": "Precio, cantidad y stop loss deben ser positivos"})
+
+        pos = Position(
+            stock_id=stock.id,
+            entry_date=entry_date,
+            entry_price=data.entry_price,
+            quantity=data.quantity,
+            stop_loss=data.stop_loss,
+            notes=data.notes,
+            status='OPEN',
+        )
+        db.add(pos)
+        db.commit()
+        db.refresh(pos)
+
+        current_price = _get_current_price(db, stock.id)
+        return _position_with_pnl(pos, current_price)
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.put("/api/portfolio/{position_id}")
+async def api_portfolio_update(position_id: int, data: PositionUpdate):
+    """Actualizar stop loss y/o notas"""
+    db = SessionLocal()
+    try:
+        pos = db.query(Position).filter(Position.id == position_id).first()
+        if not pos:
+            return JSONResponse(status_code=404, content={"error": "Posición no encontrada"})
+        if pos.status != 'OPEN':
+            return JSONResponse(status_code=400, content={"error": "Solo se pueden editar posiciones abiertas"})
+
+        if data.stop_loss is not None:
+            if data.stop_loss <= 0:
+                return JSONResponse(status_code=400, content={"error": "El stop loss debe ser positivo"})
+            pos.stop_loss = data.stop_loss
+        if data.notes is not None:
+            pos.notes = data.notes
+
+        db.commit()
+        current_price = _get_current_price(db, pos.stock_id)
+        return _position_with_pnl(pos, current_price)
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.post("/api/portfolio/{position_id}/close")
+async def api_portfolio_close(position_id: int, data: PositionClose):
+    """Cerrar posición (venta)"""
+    db = SessionLocal()
+    try:
+        pos = db.query(Position).filter(Position.id == position_id).first()
+        if not pos:
+            return JSONResponse(status_code=404, content={"error": "Posición no encontrada"})
+        if pos.status != 'OPEN':
+            return JSONResponse(status_code=400, content={"error": "La posición ya está cerrada"})
+
+        try:
+            exit_date = date_type.fromisoformat(data.exit_date)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"error": "Formato de fecha inválido (usar YYYY-MM-DD)"})
+
+        if data.exit_price <= 0:
+            return JSONResponse(status_code=400, content={"error": "El precio de salida debe ser positivo"})
+
+        pos.exit_date = exit_date
+        pos.exit_price = data.exit_price
+        pos.status = 'CLOSED'
+        db.commit()
+        return _position_closed_dict(pos)
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.get("/api/portfolio/history")
+async def api_portfolio_history():
+    """Historial de posiciones cerradas"""
+    db = SessionLocal()
+    try:
+        positions = db.query(Position).filter(
+            Position.status == 'CLOSED'
+        ).order_by(Position.exit_date.desc()).all()
+
+        result = [_position_closed_dict(p) for p in positions]
+        total_pnl = sum(p["pnl_eur"] for p in result)
+        return {"positions": result, "total": len(result), "total_pnl": round(total_pnl, 2)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.get("/api/portfolio/summary")
+async def api_portfolio_summary():
+    """Estadísticas globales del portfolio"""
+    db = SessionLocal()
+    try:
+        open_positions = db.query(Position).filter(Position.status == 'OPEN').all()
+
+        total_invested = 0.0
+        total_pnl = 0.0
+        pnl_pcts = []
+
+        for pos in open_positions:
+            current_price = _get_current_price(db, pos.stock_id)
+            entry_price = float(pos.entry_price)
+            quantity = float(pos.quantity)
+            invested = entry_price * quantity
+            pnl_eur = (current_price - entry_price) * quantity
+            pnl_pct = (current_price - entry_price) / entry_price * 100
+            total_invested += invested
+            total_pnl += pnl_eur
+            pnl_pcts.append(pnl_pct)
+
+        avg_pnl_pct = sum(pnl_pcts) / len(pnl_pcts) if pnl_pcts else 0.0
+
+        return {
+            "open_count": len(open_positions),
+            "total_invested": round(total_invested, 2),
+            "total_pnl_eur": round(total_pnl, 2),
+            "avg_pnl_pct": round(avg_pnl_pct, 2),
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    finally:
+        db.close()
+
+
+@app.delete("/api/portfolio/history")
+async def api_portfolio_clear_history():
+    """Borrar todo el historial de posiciones cerradas"""
+    db = SessionLocal()
+    try:
+        deleted = db.query(Position).filter(Position.status == 'CLOSED').delete()
+        db.commit()
+        return {"message": f"Historial borrado: {deleted} posiciones eliminadas"}
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         db.close()
 

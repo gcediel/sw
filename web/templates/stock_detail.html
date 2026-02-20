@@ -43,6 +43,7 @@
                 <a href="{{ base_path }}/stocks">Acciones</a>
                 <a href="{{ base_path }}/signals">Señales</a>
                 <a href="{{ base_path }}/watchlist">Watchlist</a>
+                <a href="{{ base_path }}/portfolio">Cartera</a>
                 <a href="{{ base_path }}/admin">Admin</a>
                 <a href="{{ base_path }}/logout">Salir</a>
             </div>
@@ -69,7 +70,42 @@
                     <h2 id="stock-title">-</h2>
                     <p class="subtitle" id="stock-name">-</p>
                 </div>
-                <a href="{{ base_path }}/stocks" class="btn btn-primary">← Volver a la lista</a>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button class="btn btn-primary" onclick="openBuyModal()" style="background:#10b981; border-color:#10b981;">+ Comprar</button>
+                    <a href="{{ base_path }}/stocks" class="btn btn-primary">← Volver a la lista</a>
+                </div>
+            </div>
+
+            <!-- Modal de compra -->
+            <div id="buy-modal" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:0.75rem; padding:1.5rem; margin-bottom:1.5rem;">
+                <h4 style="margin:0 0 1rem 0; color:#15803d;">Registrar compra de <span id="bm-ticker-label">-</span></h4>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1rem;">
+                    <div class="form-group">
+                        <label style="font-size:0.8rem; color:#4b5563; font-weight:500;">Fecha entrada</label>
+                        <input type="date" id="bm-date" class="form-input" style="font-size:0.875rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.8rem; color:#4b5563; font-weight:500;">Precio compra</label>
+                        <input type="number" id="bm-price" class="form-input" step="0.01" min="0.01" style="font-size:0.875rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.8rem; color:#4b5563; font-weight:500;">Cantidad (acciones)</label>
+                        <input type="number" id="bm-qty" class="form-input" step="0.01" min="0.01" placeholder="0" style="font-size:0.875rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.8rem; color:#4b5563; font-weight:500;">Stop Loss (sugerido: MA30)</label>
+                        <input type="number" id="bm-stop" class="form-input" step="0.01" min="0.01" style="font-size:0.875rem;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label style="font-size:0.8rem; color:#4b5563; font-weight:500;">Notas (opcional)</label>
+                        <input type="text" id="bm-notes" class="form-input" placeholder="Observaciones..." style="font-size:0.875rem;">
+                    </div>
+                </div>
+                <div id="bm-error" class="alert alert-error" style="display:none; margin-bottom:0.75rem;"></div>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn btn-primary" onclick="saveBuyModal()" style="background:#10b981; border-color:#10b981;">Guardar compra</button>
+                    <button class="btn btn-cancel" onclick="closeBuyModal()">Cancelar</button>
+                </div>
             </div>
 
             <!-- Información actual -->

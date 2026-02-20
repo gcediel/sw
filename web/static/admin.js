@@ -182,3 +182,26 @@ function showAlert(msg, type) {
     el.style.display = 'block';
     setTimeout(() => { el.style.display = 'none'; }, 3000);
 }
+
+async function clearPortfolioHistory() {
+    if (!confirm('¿Borrar TODO el historial de operaciones cerradas? Esta acción no se puede deshacer.')) return;
+    try {
+        const resp = await fetch(`${BASE_PATH}/api/portfolio/history`, {method: 'DELETE'});
+        const data = await resp.json();
+        const el = document.getElementById('portfolio-admin-alert');
+        if (!resp.ok) {
+            el.textContent = data.error || 'Error al borrar historial';
+            el.className = 'alert alert-error';
+        } else {
+            el.textContent = data.message || 'Historial borrado correctamente';
+            el.className = 'alert alert-success';
+        }
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+    } catch (e) {
+        const el = document.getElementById('portfolio-admin-alert');
+        el.textContent = 'Error de conexión';
+        el.className = 'alert alert-error';
+        el.style.display = 'block';
+    }
+}

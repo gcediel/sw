@@ -329,6 +329,78 @@ function getStageInfo(stage) {
     return stages[stage] || { name: 'Desconocida', color: '#6c757d' };
 }
 
+// ============================================================
+// MODAL COMPRA
+// ============================================================
+
+function openBuyModal() {
+    const modal = document.getElementById('buy-modal');
+    if (!modal) return;
+    // Pre-rellenar ticker y precio
+    const ticker = window.TICKER || '';
+    document.getElementById('bm-ticker-label').textContent = ticker;
+    document.getElementById('bm-date').value = new Date().toISOString().slice(0, 10);
+
+    // Precio: último precio semanal disponible
+    let price = null;
+    let ma30 = null;
+    if (fullHistoryData && fullHistoryData.length > 0) {
+        const last = fullHistoryData[fullHistoryData.length - 1];
+        price = last.close;
+        ma30 = last.ma30;
+    }
+    if (price) document.getElementById('bm-price').value = price.toFixed(2);
+    if (ma30) document.getElementById('bm-stop').value = ma30.toFixed(2);
+
+    document.getElementById('bm-error').style.display = 'none';
+    modal.style.display = 'block';
+    document.getElementById('bm-qty').focus();
+}
+
+function closeBuyModal() {
+    document.getElementById('buy-modal').style.display = 'none';
+}
+
+async function saveBuyModal() {
+    const ticker = window.TICKER || '';
+    const entry_date = document.getElementById('bm-date').value;
+    const entry_price = parseFloat(document.getElementById('bm-price').value);
+    const quantity = parseFloat(document.getElementById('bm-qty').value);
+    const stop_loss = parseFloat(document.getElementById('bm-stop').value);
+    const notes = document.getElementById('bm-notes').value.trim();
+    const errEl = document.getElementById('bm-error');
+
+    if (!entry_date || isNaN(entry_price) || isNaN(quantity) || isNaN(stop_loss)) {
+        errEl.textContent = 'Completa todos los campos obligatorios';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (entry_price <= 0 || quantity <= 0 || stop_loss <= 0) {
+        errEl.textContent = 'Precio, cantidad y stop loss deben ser positivos';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const resp = await fetch(`${BASE_PATH}/api/portfolio`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ticker, entry_date, entry_price, quantity, stop_loss, notes})
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            errEl.textContent = data.error || 'Error al guardar';
+            errEl.style.display = 'block';
+            return;
+        }
+        closeBuyModal();
+        window.location.href = `${BASE_PATH}/portfolio`;
+    } catch (e) {
+        errEl.textContent = 'Error de conexión';
+        errEl.style.display = 'block';
+    }
+}
+
 // Utilidades
 function formatDate(dateString) {
     const date = new Date(dateString);

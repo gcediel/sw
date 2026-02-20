@@ -1,10 +1,11 @@
 """
 Modelos de base de datos y configuración SQLAlchemy
 """
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DECIMAL, BigInteger, Enum, TIMESTAMP, ForeignKey, Index
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DECIMAL, BigInteger, Enum, TIMESTAMP, ForeignKey, Index, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
+from datetime import datetime
 import pymysql
 from app.config import DB_CONFIG
 
@@ -135,6 +136,33 @@ class Signal(Base):
     
     def __repr__(self):
         return f"<Signal(stock_id={self.stock_id}, type={self.signal_type}, date={self.signal_date})>"
+
+
+class Position(Base):
+    """Posiciones de cartera (compras/ventas reales)"""
+    __tablename__ = 'positions'
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    stock_id    = Column(Integer, ForeignKey('stocks.id', ondelete='CASCADE'), nullable=False)
+    entry_date  = Column(Date, nullable=False)
+    entry_price = Column(DECIMAL(12, 4), nullable=False)
+    quantity    = Column(DECIMAL(12, 4), nullable=False)
+    stop_loss   = Column(DECIMAL(12, 4), nullable=False)
+    exit_date   = Column(Date, nullable=True)
+    exit_price  = Column(DECIMAL(12, 4), nullable=True)
+    status      = Column(String(10), default='OPEN')   # 'OPEN' | 'CLOSED'
+    notes       = Column(Text, nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    updated_at  = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    stock = relationship('Stock', backref='positions')
+
+    __table_args__ = (
+        Index('idx_position_status', 'status'),
+    )
+
+    def __repr__(self):
+        return f"<Position(stock_id={self.stock_id}, status={self.status}, entry_date={self.entry_date})>"
 
 
 # ============================================
