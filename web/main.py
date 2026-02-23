@@ -611,6 +611,7 @@ async def get_stock_detail(ticker: str):
                     'high': float(w.high) if w.high else None,
                     'low': float(w.low) if w.low else None,
                     'close': float(w.close),
+                    'volume': int(w.volume) if w.volume else None,
                     'ma30': float(w.ma30) if w.ma30 else None,
                     'stage': w.stage
                 }

@@ -6,6 +6,7 @@ const TICKER = window.TICKER;
 let chart = null;
 let candleSeries = null;
 let ma30Series = null;
+let volumeSeries = null;
 let fullHistoryData = null;
 
 // Cargar datos al iniciar
@@ -147,6 +148,20 @@ function createChart(history) {
         }
     );
 
+    // Serie de volumen (histograma en panel inferior)
+    volumeSeries = chart.addSeries(
+        LightweightCharts.HistogramSeries,
+        {
+            priceFormat: { type: 'volume' },
+            priceScaleId: 'volume',
+            lastValueVisible: false,
+            priceLineVisible: false,
+        }
+    );
+    chart.priceScale('volume').applyOptions({
+        scaleMargins: { top: 0.75, bottom: 0 },
+    });
+
     // Preparar datos de velas
     const candleData = history
         .filter(h => h.open !== null && h.high !== null && h.low !== null)
@@ -166,8 +181,18 @@ function createChart(history) {
             value: h.ma30,
         }));
 
+    // Preparar datos de volumen
+    const volumeData = history
+        .filter(h => h.volume !== null)
+        .map(h => ({
+            time: h.week_end_date,
+            value: h.volume,
+            color: (h.close >= h.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+        }));
+
     candleSeries.setData(candleData);
     ma30Series.setData(ma30Data);
+    volumeSeries.setData(volumeData);
 
     // Ajustar vista
     chart.timeScale().fitContent();
@@ -191,6 +216,10 @@ function createChart(history) {
         let html = `<span style="color:${color}">O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)}</span>`;
         if (ma) {
             html += ` <span style="color:#f59e0b">MA30:${ma.value.toFixed(2)}</span>`;
+        }
+        const vol = param.seriesData.get(volumeSeries);
+        if (vol) {
+            html += ` <span style="color:#94a3b8">Vol:${formatVolume(vol.value)}</span>`;
         }
         legendEl.innerHTML = html;
     }
@@ -413,4 +442,11 @@ function formatDateShort(dateString) {
     const day = date.getDate();
     const month = date.toLocaleDateString('es-ES', { month: 'short' });
     return `${day} ${month}`;
+}
+
+function formatVolume(v) {
+    if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
+    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+    return v.toString();
 }
