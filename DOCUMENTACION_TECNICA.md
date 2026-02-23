@@ -19,6 +19,7 @@
 15. [Logs y Monitorizacion](#15-logs-y-monitorizacion)
 16. [Seguridad](#16-seguridad)
 17. [Modulo Cartera (Portfolio)](#17-modulo-cartera-portfolio)
+18. [Grafico de Detalle de Accion](#18-grafico-de-detalle-de-accion)
 
 ---
 
@@ -402,7 +403,7 @@ La aplicacion usa sesiones con cookie firmada:
 |----------|------------|-------------|
 | `GET /api/dashboard/stats` | - | Estadisticas: total acciones, distribucion por etapas, senales recientes, acciones no actualizadas (diario/semanal) |
 | `GET /api/stocks` | stage, search, limit, offset | Lista paginada de acciones con filtros |
-| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC), senales |
+| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC + volumen + fuerza relativa vs SPY), senales |
 | `GET /api/signals` | signal_type, days, limit | Senales recientes con filtros |
 | `GET /api/watchlist` | - | Acciones en Etapa 2 ordenadas por pendiente MA30 |
 | `GET /api/health` | - | Estado del servicio |
@@ -446,7 +447,7 @@ Cada pagina tiene su fichero JS que consume la API y actualiza el DOM:
 
 - **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes, top acciones en Etapa 2 e indicadores de acciones no actualizadas (badges verde/amarillo para datos diarios y semanales)
 - **stocks.js** - Filtrado por etapa, busqueda por ticker/nombre, paginacion
-- **stock_detail.js** - Grafico de velas japonesas (OHLC) con MA30 superpuesta usando Lightweight Charts, periodos seleccionables (6M, 1Y, 2Y, Todo), historial de etapas, senales y modal de compra rapida pre-relleno con precio y MA30
+- **stock_detail.js** - Grafico con tres paneles apilados usando Lightweight Charts: (1) velas japonesas OHLC con MA30 superpuesta (60% superior), (2) linea de Fuerza Relativa vs SPY normalizada a 100 con linea base punteada (18% central), (3) histograma de volumen con barras verdes/rojas segun direccion de la vela (18% inferior). Periodos seleccionables (6M, 1A, 2A, Todo). Tooltip muestra OHLC, MA30, RS y volumen al pasar el cursor. Incluye historial de etapas, senales y modal de compra rapida pre-relleno con precio y MA30
 - **signals.js** - Filtros por tipo (BUY/SELL) y periodo (30/90/180/365 dias)
 - **watchlist.js** - Carga acciones en Etapa 2 desde `/api/watchlist`
 - **portfolio.js** - Cartera: carga posiciones abiertas con P&L, formularios inline para editar stop loss y cerrar posicion, historial de cerradas, stats globales (P&L abierto / cerrado / global)
@@ -790,3 +791,68 @@ TICKER
 ```
 
 La alerta se repite cada dia mientras la condicion se mantenga (no se marca como notificada).
+
+---
+
+## 18. Grafico de Detalle de Accion
+
+### Descripcion
+
+El grafico de la pagina `/stock/{ticker}` muestra tres paneles apilados en un unico contenedor de 500px de altura, implementado con la libreria **Lightweight Charts** de TradingView (v5, standalone).
+
+### Paneles
+
+| Panel | Altura relativa | Contenido | Color |
+|-------|----------------|-----------|-------|
+| Superior | 60% | Velas japonesas OHLC + linea MA30 | Velas verdes/rojas, MA30 ambar |
+| Central | 18% | Linea de Fuerza Relativa vs SPY | Violeta `#8b5cf6` |
+| Inferior | 18% | Histograma de volumen semanal | Verde/rojo semitransparente |
+
+### Fuerza Relativa vs SPY
+
+Implementa el concepto clave de la metodologia Weinstein: comparar el comportamiento de la accion con el mercado de referencia (S&P 500).
+
+**Calculo:**
+- El ETF **SPY** (SPDR S&P 500 ETF, ticker interno `SPY`, exchange `INDEX`) sirve como referencia de mercado
+- El backend calcula el ratio bruto: `rs = close_accion / close_SPY` para cada semana donde existan datos de ambos
+- El frontend normaliza el ratio al inicio del periodo seleccionado: `RS_normalizado = (rs / rs_base) * 100`
+- Resultado: el RS empieza siempre en 100 al principio del periodo visible y evoluciona segun la accion bata o pierda al SPY
+
+**Interpretacion:**
+- `RS > 100`: la accion ha superado al SPY desde el inicio del periodo seleccionado
+- `RS < 100`: la accion ha quedado por detras del SPY
+- Linea ascendente: fortaleza relativa creciente (positivo en Weinstein para confirmar Etapa 2)
+- Linea descendente: debilidad relativa (senal de alerta en cualquier etapa)
+
+**Linea base:** linea de puntos gris en RS = 100 para facilitar la lectura visual.
+
+**Nota:** el RS se recalcula al cambiar el periodo (6M, 1A, 2A, Todo), por lo que el punto de partida siempre es el inicio del periodo seleccionado.
+
+### Periodos seleccionables
+
+| Boton | Semanas | Descripcion |
+|-------|---------|-------------|
+| 6M | 26 | Ultimos 6 meses |
+| 1A | 52 | Ultimo ano (por defecto al cargar) |
+| 2A | 104 | Ultimos 2 anos (maximo disponible en BD) |
+| Todo | 0 | Todo el historico disponible |
+
+### Datos del API
+
+El endpoint `GET /api/stock/{ticker}` devuelve en cada entrada del historial:
+
+```json
+{
+  "week_end_date": "2026-02-14",
+  "open": 123.45,
+  "high": 126.00,
+  "low": 121.00,
+  "close": 125.30,
+  "volume": 4500000,
+  "ma30": 118.90,
+  "stage": 2,
+  "rs": 0.283741
+}
+```
+
+El campo `rs` es el ratio bruto `close / spy_close`. La normalizacion a 100 se realiza en el frontend para adaptarse al periodo seleccionado dinamicamente. Si no hay dato de SPY para esa semana, `rs` es `null` y la semana se omite del panel RS.
