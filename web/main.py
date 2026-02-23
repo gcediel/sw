@@ -587,6 +587,15 @@ async def get_stock_detail(ticker: str):
 
         history.reverse()  # Orden cronológico
 
+        # Fuerza relativa vs SPY
+        spy_stock = db.query(Stock).filter(Stock.ticker == 'SPY').first()
+        spy_closes = {}
+        if spy_stock:
+            spy_rows = db.query(WeeklyData).filter(
+                WeeklyData.stock_id == spy_stock.id
+            ).order_by(desc(WeeklyData.week_end_date)).limit(104).all()
+            spy_closes = {w.week_end_date.isoformat(): float(w.close) for w in spy_rows}
+
         # Señales de esta acción
         signals = db.query(Signal).filter(
             Signal.stock_id == stock.id
@@ -613,7 +622,9 @@ async def get_stock_detail(ticker: str):
                     'close': float(w.close),
                     'volume': int(w.volume) if w.volume else None,
                     'ma30': float(w.ma30) if w.ma30 else None,
-                    'stage': w.stage
+                    'stage': w.stage,
+                    'rs': round(float(w.close) / spy_closes[w.week_end_date.isoformat()], 6)
+                          if w.week_end_date.isoformat() in spy_closes else None,
                 }
                 for w in history
             ],

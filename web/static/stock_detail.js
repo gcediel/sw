@@ -7,6 +7,7 @@ let chart = null;
 let candleSeries = null;
 let ma30Series = null;
 let volumeSeries = null;
+let rsSeries = null;
 let fullHistoryData = null;
 
 // Cargar datos al iniciar
@@ -148,6 +149,23 @@ function createChart(history) {
         }
     );
 
+    // Panel RS: fuerza relativa vs SPY (zona central)
+    rsSeries = chart.addSeries(
+        LightweightCharts.LineSeries,
+        {
+            color: '#8b5cf6',
+            lineWidth: 1.5,
+            priceScaleId: 'rs',
+            lastValueVisible: false,
+            priceLineVisible: false,
+            crosshairMarkerVisible: true,
+        }
+    );
+    chart.priceScale('rs').applyOptions({
+        scaleMargins: { top: 0.62, bottom: 0.22 },
+        borderVisible: false,
+    });
+
     // Serie de volumen (histograma en panel inferior)
     volumeSeries = chart.addSeries(
         LightweightCharts.HistogramSeries,
@@ -159,7 +177,12 @@ function createChart(history) {
         }
     );
     chart.priceScale('volume').applyOptions({
-        scaleMargins: { top: 0.75, bottom: 0 },
+        scaleMargins: { top: 0.84, bottom: 0 },
+    });
+
+    // Precio ocupa el panel superior (60%)
+    chart.priceScale('right').applyOptions({
+        scaleMargins: { top: 0.02, bottom: 0.42 },
     });
 
     // Preparar datos de velas
@@ -181,6 +204,14 @@ function createChart(history) {
             value: h.ma30,
         }));
 
+    // Preparar datos de fuerza relativa (normalizada a 100 al inicio del período)
+    const rsRaw = history.filter(h => h.rs !== null);
+    const rsBase = rsRaw.length > 0 ? rsRaw[0].rs : null;
+    const rsData = rsBase ? rsRaw.map(h => ({
+        time: h.week_end_date,
+        value: parseFloat((h.rs / rsBase * 100).toFixed(4)),
+    })) : [];
+
     // Preparar datos de volumen
     const volumeData = history
         .filter(h => h.volume !== null)
@@ -192,7 +223,19 @@ function createChart(history) {
 
     candleSeries.setData(candleData);
     ma30Series.setData(ma30Data);
+    rsSeries.setData(rsData);
     volumeSeries.setData(volumeData);
+
+    // Línea base RS en 100 (referencia: paridad con SPY)
+    if (rsData.length > 0) {
+        rsSeries.createPriceLine({
+            price: 100,
+            color: '#94a3b8',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: false,
+        });
+    }
 
     // Ajustar vista
     chart.timeScale().fitContent();
@@ -216,6 +259,11 @@ function createChart(history) {
         let html = `<span style="color:${color}">O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)}</span>`;
         if (ma) {
             html += ` <span style="color:#f59e0b">MA30:${ma.value.toFixed(2)}</span>`;
+        }
+        const rs = param.seriesData.get(rsSeries);
+        if (rs) {
+            const rsColor = rs.value >= 100 ? '#8b5cf6' : '#a78bfa';
+            html += ` <span style="color:${rsColor}">RS:${rs.value.toFixed(1)}</span>`;
         }
         const vol = param.seriesData.get(volumeSeries);
         if (vol) {
