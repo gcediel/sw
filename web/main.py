@@ -652,7 +652,8 @@ async def get_stock_detail(ticker: str):
 async def get_signals(
     signal_type: Optional[str] = None,
     days: int = 30,
-    limit: int = 50
+    limit: int = 50,
+    date: Optional[str] = None
 ):
     """
     Obtener señales recientes
@@ -660,17 +661,21 @@ async def get_signals(
     Args:
         signal_type: Filtrar por tipo (BUY, SELL, STAGE_CHANGE)
         days: Días hacia atrás
-        limit: Número máximo de resultados
+        limit: Número máximo de resultados (ignorado si se usa date)
+        date: Filtrar por fecha exacta (YYYY-MM-DD); devuelve todos sin límite
     """
     db = SessionLocal()
 
     try:
-        # Query base
-        cutoff_date = datetime.now().date() - timedelta(days=days)
-
         query = db.query(Signal, Stock).join(
             Stock, Signal.stock_id == Stock.id
-        ).filter(Signal.signal_date >= cutoff_date)
+        )
+
+        if date:
+            query = query.filter(Signal.signal_date == date)
+        else:
+            cutoff_date = datetime.now().date() - timedelta(days=days)
+            query = query.filter(Signal.signal_date >= cutoff_date)
 
         # Filtro por tipo
         if signal_type:
@@ -679,8 +684,11 @@ async def get_signals(
         # Ordenar por fecha descendente
         query = query.order_by(desc(Signal.signal_date))
 
-        # Limitar
-        results = query.limit(limit).all()
+        # Limitar solo si no se filtra por fecha exacta
+        if date:
+            results = query.all()
+        else:
+            results = query.limit(limit).all()
 
         # Formatear
         signals = []

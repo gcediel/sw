@@ -6,6 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ base_path }}/static/favicon.svg">
     <title>Sistema Weinstein - Dashboard</title>
     <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+    <link rel="stylesheet" href="{{ base_path }}/static/simple-datatables.min.css">
 </head>
 <body>
     <nav class="navbar">
@@ -116,28 +117,28 @@
             </div>
         </div>
 
-        <!-- Señales Recientes -->
+        <!-- Señales del viernes anterior -->
         <div class="card">
             <div class="card-header">
-                <h3>Últimas Señales BUY</h3>
-                <a href="{{ base_path }}/signals" class="btn-link">Ver todas →</a>
+                <h3>Señales del viernes anterior (<span id="signals-date-label">...</span>)</h3>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table id="recent-signals-table">
                         <thead>
                             <tr>
+                                <th>Fecha</th>
                                 <th>Ticker</th>
                                 <th>Nombre</th>
-                                <th>Fecha</th>
                                 <th>Tipo</th>
                                 <th>Transición</th>
                                 <th>Precio</th>
+                                <th>MA30</th>
                             </tr>
                         </thead>
                         <tbody id="recent-signals">
                             <tr>
-                                <td colspan="6" class="text-center">Cargando...</td>
+                                <td colspan="7" class="text-center">Cargando...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -186,6 +187,7 @@
         window.BASE_PATH = "{{ base_path }}";
     </script>
     <script src="{{ base_path }}/static/table-sort.js"></script>
+    <script src="{{ base_path }}/static/simple-datatables.min.js"></script>
     <script src="{{ base_path }}/static/dashboard.js"></script>
 </body>
 </html>
