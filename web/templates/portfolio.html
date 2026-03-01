@@ -6,6 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ base_path }}/static/favicon.svg">
     <title>Cartera - Sistema Weinstein</title>
     <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+    <link rel="stylesheet" href="{{ base_path }}/static/simple-datatables.min.css">
     <style>
         .pnl-positive { color: #10b981; font-weight: 600; }
         .pnl-negative { color: #ef4444; font-weight: 600; }
@@ -248,8 +249,9 @@
             <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
                 <button class="btn btn-danger" onclick="clearHistory()">Borrar historial</button>
             </div>
+            <div id="history-total" style="text-align:right; margin-bottom:0.5rem; font-weight:600; color:#374151;"></div>
             <div class="table-responsive">
-                <table>
+                <table id="history-table">
                     <thead>
                         <tr>
                             <th>Ticker</th>
@@ -260,7 +262,7 @@
                             <th>Cantidad</th>
                             <th>P&L €</th>
                             <th>P&L %</th>
-                            <th></th>
+                            <th data-sortable="false"></th>
                         </tr>
                     </thead>
                     <tbody id="history-tbody">
@@ -279,6 +281,7 @@
     </footer>
 
     <script>window.BASE_PATH = "{{ base_path }}";</script>
+    <script src="{{ base_path }}/static/simple-datatables.min.js"></script>
     <script src="{{ base_path }}/static/portfolio.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ base_path }}/static/favicon.svg">
     <title>Acciones - Sistema Weinstein</title>
     <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+    <link rel="stylesheet" href="{{ base_path }}/static/simple-datatables.min.css">
 </head>
 <body>
     <nav class="navbar">
@@ -33,10 +34,6 @@
 
         <!-- Filtros -->
         <div class="filters">
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="🔍 Buscar por ticker o nombre...">
-            </div>
-            
             <div class="filter-group">
                 <button class="filter-btn active" data-stage="all">Todas</button>
                 <button class="filter-btn" data-stage="1">Etapa 1</button>
@@ -93,7 +90,6 @@
         <div class="card">
             <div class="card-header">
                 <h3>Lista de Acciones</h3>
-                <span id="results-count"></span>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -117,8 +113,6 @@
                     </table>
                 </div>
                 
-                <!-- Paginación -->
-                <div id="pagination" style="margin-top: 1rem; text-align: center;"></div>
             </div>
         </div>
     </div>
@@ -133,7 +127,7 @@
     <script>
         window.BASE_PATH = "{{ base_path }}";
     </script>
-    <script src="{{ base_path }}/static/table-sort.js"></script>
+    <script src="{{ base_path }}/static/simple-datatables.min.js"></script>
     <script src="{{ base_path }}/static/stocks.js"></script>
 </body>
 </html>

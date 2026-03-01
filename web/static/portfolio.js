@@ -4,6 +4,7 @@ const BASE_PATH = window.BASE_PATH || '';
 
 // Estado de formularios inline por posición
 let activeInlineForm = null;  // { positionId, type }
+let historyDT = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Fecha de hoy como default del formulario de compra
@@ -330,13 +331,23 @@ async function loadHistory() {
 }
 
 function renderHistory(positions, totalPnl) {
+    if (historyDT) { historyDT.destroy(); historyDT = null; }
+
     const tbody = document.getElementById('history-tbody');
+
+    // Mostrar total fuera de la DataTable
+    const totalDiv = document.getElementById('history-total');
+    if (totalDiv) {
+        const totalClass = totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+        totalDiv.innerHTML = `P&L total acumulado cerradas: <span class="${totalClass}">${fmtEur(totalPnl)}</span>`;
+    }
+
     if (!positions.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones cerradas en el historial.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones cerradas en el historial.</td></tr>';
         return;
     }
 
-    let rows = positions.map(p => {
+    tbody.innerHTML = positions.map(p => {
         const pnlClass = p.pnl_eur >= 0 ? 'pnl-positive' : 'pnl-negative';
         return `
         <tr>
@@ -348,24 +359,22 @@ function renderHistory(positions, totalPnl) {
             <td>${p.quantity}</td>
             <td class="${pnlClass}">${fmtEur(p.pnl_eur)}</td>
             <td class="${pnlClass}">${fmtPct(p.pnl_pct)}</td>
-            <td>
-                <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
-            </td>
-        </tr>
-        `;
+            <td><button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button></td>
+        </tr>`;
     }).join('');
 
-    // Fila resumen
-    const totalClass = totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
-    rows += `
-        <tr class="total-row">
-            <td colspan="6" style="text-align:right;">P&L total acumulado cerradas:</td>
-            <td class="${totalClass}">${fmtEur(totalPnl)}</td>
-            <td></td>
-            <td></td>
-        </tr>
-    `;
-    tbody.innerHTML = rows;
+    historyDT = new simpleDatatables.DataTable('#history-table', {
+        perPage: 25,
+        perPageSelect: [25, 50],
+        sanitize: false,
+        labels: {
+            placeholder: "Buscar...",
+            noRows: "No hay posiciones cerradas",
+            info: "Mostrando {start} a {end} de {rows} posiciones",
+            perPage: "por página",
+        },
+        columns: [{ select: 8, sortable: false }],
+    });
 }
 
 async function clearHistory() {
