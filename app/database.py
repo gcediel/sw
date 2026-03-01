@@ -132,6 +132,7 @@ class Signal(Base):
         Index('idx_signal_date', 'signal_date'),
         Index('idx_notified', 'notified'),
         Index('idx_stock_signal', 'stock_id', 'signal_date'),
+        Index('uq_stock_signal_type', 'stock_id', 'signal_date', 'signal_type', unique=True),
     )
     
     def __repr__(self):

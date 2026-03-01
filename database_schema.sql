@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS signals (
     ma30 DECIMAL(12,4),
     notified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_stock_signal_type (stock_id, signal_date, signal_type),
     FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE,
     INDEX idx_signal_date (signal_date),
     INDEX idx_notified (notified),
