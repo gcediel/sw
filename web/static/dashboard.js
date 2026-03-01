@@ -89,20 +89,20 @@ function getPreviousFriday() {
     const today = new Date();
     const day = today.getDay(); // 0=Dom, 1=Lun, ..., 5=Vie, 6=Sáb
     const daysBack = day === 5 ? 0 : day === 6 ? 1 : day + 2;
-    const friday = new Date(today);
-    friday.setDate(today.getDate() - daysBack);
-    return friday.toISOString().split('T')[0]; // YYYY-MM-DD
+    const d = new Date(today);
+    d.setDate(today.getDate() - daysBack);
+    // Usar fecha local (no UTC) para evitar desfase de zona horaria
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day2 = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day2}`;
 }
 
-// Cargar señales del viernes anterior
+// Cargar señales BUY del viernes anterior
 async function loadRecentSignals() {
     try {
         const fridayDate = getPreviousFriday();
-
-        // Mostrar la fecha en el encabezado
-        document.getElementById('signals-date-label').textContent = formatDate(fridayDate);
-
-        const response = await fetch(`${BASE_PATH}/api/signals?date=${fridayDate}`);
+        const response = await fetch(`${BASE_PATH}/api/signals?date=${fridayDate}&signal_type=BUY`);
         const data = await response.json();
 
         // Destruir DataTable anterior si existe
@@ -112,40 +112,36 @@ async function loadRecentSignals() {
         }
 
         const tbody = document.getElementById('recent-signals');
-        tbody.innerHTML = '';
 
         if (data.signals.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay señales para esta fecha</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay señales BUY para esta fecha</td></tr>';
             return;
         }
 
-        data.signals.forEach(signal => {
-            const row = document.createElement('tr');
-            const badgeClass = signal.type === 'BUY' ? 'badge-buy' : signal.type === 'SELL' ? 'badge-sell' : 'badge-stage';
-            row.innerHTML = `
+        // Construir HTML en bloque (como admin.js) para que DataTable lo lea correctamente
+        tbody.innerHTML = data.signals.map(signal => `
+            <tr>
                 <td>${formatDate(signal.date)}</td>
                 <td><a href="${BASE_PATH}/stock/${signal.ticker}" class="ticker-link">${signal.ticker}</a></td>
                 <td>${truncate(signal.name, 30)}</td>
-                <td><span class="badge ${badgeClass}">${signal.type}</span></td>
+                <td><span class="badge badge-buy">BUY</span></td>
                 <td><span class="badge badge-stage">Etapa ${signal.stage_from} → ${signal.stage_to}</span></td>
                 <td>$${signal.price.toFixed(2)}</td>
                 <td>${signal.ma30 ? '$' + signal.ma30.toFixed(2) : 'N/A'}</td>
-            `;
-            tbody.appendChild(row);
-        });
+            </tr>
+        `).join('');
 
         // Inicializar DataTable
-        requestAnimationFrame(() => {
-            signalsDataTable = new simpleDatatables.DataTable('#recent-signals-table', {
-                perPage: 15,
-                perPageSelect: [15, 25, 50],
-                labels: {
-                    placeholder: "Buscar...",
-                    noRows: "No hay señales",
-                    info: "Mostrando {start} a {end} de {rows} señales",
-                    perPage: "por página",
-                },
-            });
+        signalsDataTable = new simpleDatatables.DataTable('#recent-signals-table', {
+            perPage: 15,
+            perPageSelect: [15, 25, 50],
+            sanitize: false,
+            labels: {
+                placeholder: "Buscar...",
+                noRows: "No hay señales",
+                info: "Mostrando {start} a {end} de {rows} señales",
+                perPage: "por página",
+            },
         });
 
     } catch (error) {
