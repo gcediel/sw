@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Backtesting v3 - Sistema Weinstein
-Lee transiciones de etapa 1→2 directamente de weekly_data (histórico completo)
-Simula operaciones con stop loss y genera informe completo
+Aplica los mismos filtros que signals.py (ruptura de resistencia, base sólida,
+volumen y MRS) para evaluar únicamente señales de calidad.
 
 Uso:
     python scripts/backtest_v3.py
@@ -17,6 +17,10 @@ import argparse
 import csv
 from datetime import datetime, timedelta
 from app.database import SessionLocal, Stock, WeeklyData, DailyData
+from app.config import (
+    BUY_RESISTANCE_WEEKS, BUY_MIN_BASE_WEEKS, BUY_MAX_BASE_SLOPE,
+    BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS, VOLUME_SPIKE_THRESHOLD,
+)
 from sqlalchemy import and_
 
 
@@ -132,44 +136,112 @@ def simulate_trade(db, stock_id, ticker, entry_date, entry_price,
     }
 
 
+def _compute_mrs(weekly, idx, spy_closes):
+    """
+    Mansfield Relative Strength en la semana idx.
+    MRS = (rs_ratio / MA52_rs_ratio - 1) × 100
+    Devuelve None si no hay suficientes datos.
+    """
+    if idx < 52 or not spy_closes:
+        return None
+    rs_window = []
+    for j in range(idx - 51, idx + 1):
+        spy_c = spy_closes.get(weekly[j].week_end_date)
+        if spy_c and spy_c > 0:
+            rs_window.append(float(weekly[j].close) / spy_c)
+    if len(rs_window) < 52:
+        return None
+    ma52 = sum(rs_window) / len(rs_window)
+    spy_curr = spy_closes.get(weekly[idx].week_end_date)
+    if not spy_curr or spy_curr <= 0:
+        return None
+    return (float(weekly[idx].close) / spy_curr / ma52 - 1) * 100
+
+
 def find_buy_transitions(db):
     """
-    Buscar todas las transiciones Etapa 1→2 en weekly_data.
-    Para el backtest no se aplica MAX_PRICE_DISTANCE_FOR_BUY porque con la
-    histéresis del 2.5% las transiciones ocurren cuando el precio ya está
-    bastante por encima de MA30, y queremos ver todos los casos históricos.
+    Encuentra señales BUY aplicando exactamente los mismos criterios que signals.py.
+    Trabaja sobre la lista filtrada por MA30+slope (igual que _is_valid_buy_breakout):
+      1. Ruptura de resistencia: precio > máx de últimas 30 semanas × 1.01
+      2. MA30 slope > 0 en la semana de ruptura
+      3. Precio no muy extendido sobre MA30 (≤ BUY_MAX_DIST_ENTRY)
+      4. Base sólida: MA30 plana en ≥ 75% de las últimas 16 semanas
+      5. Volumen de ruptura ≥ VOLUME_SPIKE_THRESHOLD × media de la base
+      6. MRS > 0 (Mansfield Relative Strength positivo vs SPY)
     """
+    MIN_IDX = BUY_RESISTANCE_WEEKS  # 30 — ventana de resistencia
+
+    # Cargar cierres de SPY para MRS
+    spy_stock = db.query(Stock).filter(Stock.ticker == 'SPY').first()
+    spy_closes = {}
+    if spy_stock:
+        spy_rows = db.query(WeeklyData).filter(
+            WeeklyData.stock_id == spy_stock.id
+        ).order_by(WeeklyData.week_end_date.asc()).all()
+        spy_closes = {w.week_end_date: float(w.close) for w in spy_rows}
+
     stocks = db.query(Stock).filter(Stock.active == True).all()
     transitions = []
 
     for stock in stocks:
-        # No filtrar por ma30 aquí: eliminar filas intermedias rompe
-        # la adyacencia de etapas y hace desaparecer transiciones 1→2
+        # Misma lista que usa signals.py: filtrada por MA30 y slope
         weekly = db.query(WeeklyData).filter(
             and_(
                 WeeklyData.stock_id == stock.id,
-                WeeklyData.stage.isnot(None)
+                WeeklyData.ma30.isnot(None),
+                WeeklyData.ma30_slope.isnot(None),
             )
         ).order_by(WeeklyData.week_end_date.asc()).all()
 
-        for i in range(1, len(weekly)):
-            prev = weekly[i - 1]
-            curr = weekly[i]
+        for i in range(MIN_IDX, len(weekly)):
+            curr  = weekly[i]
+            price = float(curr.close)
+            ma30  = float(curr.ma30)
+            slope = float(curr.ma30_slope)
 
-            if prev.stage == 1 and curr.stage == 2:
-                if not curr.ma30:
-                    continue
-                price = float(curr.close)
-                ma30 = float(curr.ma30)
+            # MA30 debe estar en subida
+            if slope <= 0:
+                continue
 
-                transitions.append({
-                    'stock_id': stock.id,
-                    'ticker': stock.ticker,
-                    'name': stock.name or '',
-                    'entry_date': curr.week_end_date,
-                    'entry_price': price,
-                    'ma30': ma30,
-                })
+            # Precio no muy extendido sobre MA30
+            if (price - ma30) / ma30 > BUY_MAX_DIST_ENTRY:
+                continue
+
+            # Ruptura de resistencia: precio > máx de últimas 30 semanas × 1.01
+            resistance_window = weekly[i - BUY_RESISTANCE_WEEKS:i]
+            resistance = max(float(w.close) for w in resistance_window)
+            if price <= resistance * 1.01:
+                continue
+
+            # Base sólida: MA30 plana en ≥ 75% de las últimas 16 semanas
+            base = weekly[i - BUY_MIN_BASE_WEEKS:i]
+            slopes_flat = sum(
+                1 for w in base
+                if abs(float(w.ma30_slope)) <= BUY_MAX_BASE_SLOPE
+            )
+            if slopes_flat < int(BUY_MIN_BASE_WEEKS * 0.75):
+                continue
+
+            # Volumen: semana de ruptura ≥ VOLUME_SPIKE_THRESHOLD × media de la base
+            if curr.volume and curr.volume > 0:
+                base_vols = [float(w.volume) for w in base if w.volume and w.volume > 0]
+                if len(base_vols) >= 8:
+                    if float(curr.volume) < sum(base_vols) / len(base_vols) * VOLUME_SPIKE_THRESHOLD:
+                        continue
+
+            # MRS > 0
+            mrs = _compute_mrs(weekly, i, spy_closes)
+            if mrs is not None and mrs <= 0:
+                continue
+
+            transitions.append({
+                'stock_id': stock.id,
+                'ticker': stock.ticker,
+                'name': stock.name or '',
+                'entry_date': curr.week_end_date,
+                'entry_price': price,
+                'ma30': ma30,
+            })
 
     return transitions
 
@@ -182,7 +254,7 @@ def run_backtest(initial_stop_pct=8.0, trailing_stop_pct=15.0, csv_path=None):
     print(f"Fecha:          {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Stop inicial:   {initial_stop_pct}%")
     print(f"Trailing stop:  {trailing_stop_pct}%")
-    print(f"Fuente:         weekly_data (historico completo)")
+    print(f"Fuente:         weekly_data (filtros: resistencia+base+volumen+MRS)")
     print("=" * 65)
 
     # --- Fase 1: detectar transiciones BUY ---

@@ -580,21 +580,42 @@ async def get_stock_detail(ticker: str):
                 content={'error': f'No hay datos semanales para {ticker}'}
             )
 
-        # Historial últimas 104 semanas (2 años)
-        history = db.query(WeeklyData).filter(
+        # Historial: 104 semanas de display + 52 de warmup para MRS (Mansfield RS)
+        DISPLAY_WEEKS = 104
+        MRS_WARMUP = 52
+        history_all = db.query(WeeklyData).filter(
             WeeklyData.stock_id == stock.id
-        ).order_by(desc(WeeklyData.week_end_date)).limit(104).all()
+        ).order_by(desc(WeeklyData.week_end_date)).limit(DISPLAY_WEEKS + MRS_WARMUP).all()
+        history_all.reverse()  # Orden cronológico
 
-        history.reverse()  # Orden cronológico
-
-        # Fuerza relativa vs SPY
+        # Mansfield Relative Strength (MRS) vs SPY
+        # MRS = (rs_ratio / MA52_rs_ratio - 1) × 100  — oscila alrededor de 0
         spy_stock = db.query(Stock).filter(Stock.ticker == 'SPY').first()
-        spy_closes = {}
+        mrs_by_date = {}
         if spy_stock:
             spy_rows = db.query(WeeklyData).filter(
                 WeeklyData.stock_id == spy_stock.id
-            ).order_by(desc(WeeklyData.week_end_date)).limit(104).all()
-            spy_closes = {w.week_end_date.isoformat(): float(w.close) for w in spy_rows}
+            ).order_by(desc(WeeklyData.week_end_date)).limit(DISPLAY_WEEKS + MRS_WARMUP).all()
+            spy_closes_full = {w.week_end_date.isoformat(): float(w.close) for w in spy_rows}
+
+            # RS ratio semanal (stock/SPY) para todas las semanas disponibles
+            rs_list = []
+            for w in history_all:
+                date_str = w.week_end_date.isoformat()
+                spy_c = spy_closes_full.get(date_str)
+                rs_list.append((date_str, float(w.close) / spy_c if spy_c else None))
+
+            # MRS con ventana deslizante de 52 semanas
+            for i, (date_str, rs) in enumerate(rs_list):
+                if rs is None:
+                    continue
+                window = [r for _, r in rs_list[max(0, i - 51):i + 1] if r is not None]
+                if len(window) >= 52:
+                    ma52 = sum(window) / len(window)
+                    mrs_by_date[date_str] = round((rs / ma52 - 1) * 100, 4)
+
+        # Solo las últimas 104 semanas para mostrar
+        history = history_all[-DISPLAY_WEEKS:]
 
         # Señales de esta acción
         signals = db.query(Signal).filter(
@@ -623,8 +644,7 @@ async def get_stock_detail(ticker: str):
                     'volume': int(w.volume) if w.volume else None,
                     'ma30': float(w.ma30) if w.ma30 else None,
                     'stage': w.stage,
-                    'rs': round(float(w.close) / spy_closes[w.week_end_date.isoformat()], 6)
-                          if w.week_end_date.isoformat() in spy_closes else None,
+                    'mrs': mrs_by_date.get(w.week_end_date.isoformat()),
                 }
                 for w in history
             ],

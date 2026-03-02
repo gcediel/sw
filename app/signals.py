@@ -12,7 +12,7 @@ from sqlalchemy import and_
 from app.database import Stock, WeeklyData, Signal, SessionLocal
 from app.config import (
     BUY_RESISTANCE_WEEKS, BUY_MIN_BASE_WEEKS, BUY_MAX_BASE_SLOPE,
-    BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS
+    BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS, VOLUME_SPIKE_THRESHOLD
 )
 
 logging.basicConfig(
@@ -34,7 +34,8 @@ class SignalGenerator:
 
     def __init__(self, db: Session):
         self.db = db
-        self._spy_states = None  # caché SPY cargado bajo demanda
+        self._spy_states = None   # caché estado alcista/bajista SPY
+        self._spy_closes = None   # caché cierres semanales SPY para MRS
 
     # ------------------------------------------------------------------
     # SPY — Filtro de mercado
@@ -82,6 +83,52 @@ class SignalGenerator:
             else:
                 break
         return states.get(best, True)
+
+    def _load_spy_closes(self) -> dict:
+        """Carga los cierres semanales de SPY (caché). Necesario para MRS."""
+        if self._spy_closes is not None:
+            return self._spy_closes
+        spy = self.db.query(Stock).filter(Stock.ticker == 'SPY').first()
+        if not spy:
+            self._spy_closes = {}
+            return self._spy_closes
+        rows = self.db.query(WeeklyData).filter(
+            WeeklyData.stock_id == spy.id
+        ).order_by(WeeklyData.week_end_date.asc()).all()
+        self._spy_closes = {w.week_end_date: float(w.close) for w in rows}
+        return self._spy_closes
+
+    def _compute_mrs(self, weekly_all: list, idx: int) -> Optional[float]:
+        """
+        Mansfield Relative Strength en la semana `idx`.
+        MRS = (rs_ratio / MA52_rs_ratio - 1) × 100
+        MRS > 0: acción supera al SPY respecto a su propia media histórica.
+        Devuelve None si no hay suficientes datos (< 52 semanas).
+        """
+        if idx < 52:
+            return None
+        spy_closes = self._load_spy_closes()
+        if not spy_closes:
+            return None
+
+        # RS ratio para las últimas 52 semanas (ventana deslizante)
+        rs_window = []
+        for i in range(idx - 51, idx + 1):
+            w = weekly_all[i]
+            spy_c = spy_closes.get(w.week_end_date)
+            if spy_c and spy_c > 0:
+                rs_window.append(float(w.close) / spy_c)
+
+        if len(rs_window) < 52:
+            return None
+
+        ma52 = sum(rs_window) / len(rs_window)
+        curr = weekly_all[idx]
+        spy_curr = spy_closes.get(curr.week_end_date)
+        if not spy_curr or spy_curr <= 0:
+            return None
+
+        return (float(curr.close) / spy_curr / ma52 - 1) * 100
 
     # ------------------------------------------------------------------
     # Señales BUY — Cruce precio/MA30 con base sólida
@@ -136,6 +183,15 @@ class SignalGenerator:
         if slopes_flat < int(BUY_MIN_BASE_WEEKS * 0.75):
             return False
 
+        # Volumen: la semana de ruptura debe tener volumen >= VOLUME_SPIKE_THRESHOLD
+        # veces la media de las semanas de la base
+        if curr.volume and curr.volume > 0:
+            base_vols = [float(w.volume) for w in base if w.volume and w.volume > 0]
+            if len(base_vols) >= 8:
+                avg_base_vol = sum(base_vols) / len(base_vols)
+                if float(curr.volume) < avg_base_vol * VOLUME_SPIKE_THRESHOLD:
+                    return False
+
         return True
 
     def _generate_buy_signals(self, stock_id: int, stock_ticker: str,
@@ -164,6 +220,12 @@ class SignalGenerator:
             # Filtro mercado
             if not self._market_is_bullish(curr.week_end_date):
                 logger.debug(f"{stock_ticker}: BUY descartada {curr.week_end_date} — mercado bajista")
+                continue
+
+            # Filtro MRS: la acción debe estar superando al SPY (MRS > 0)
+            mrs = self._compute_mrs(weekly_all, i)
+            if mrs is not None and mrs <= 0:
+                logger.debug(f"{stock_ticker}: BUY descartada {curr.week_end_date} — MRS negativo ({mrs:.1f})")
                 continue
 
             change_info = {

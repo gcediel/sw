@@ -204,13 +204,10 @@ function createChart(history) {
             value: h.ma30,
         }));
 
-    // Preparar datos de fuerza relativa (normalizada a 100 al inicio del período)
-    const rsRaw = history.filter(h => h.rs !== null);
-    const rsBase = rsRaw.length > 0 ? rsRaw[0].rs : null;
-    const rsData = rsBase ? rsRaw.map(h => ({
-        time: h.week_end_date,
-        value: parseFloat((h.rs / rsBase * 100).toFixed(4)),
-    })) : [];
+    // Preparar datos MRS (Mansfield Relative Strength, centrado en 0)
+    const rsData = history
+        .filter(h => h.mrs !== null && h.mrs !== undefined)
+        .map(h => ({ time: h.week_end_date, value: h.mrs }));
 
     // Preparar datos de volumen
     const volumeData = history
@@ -226,10 +223,10 @@ function createChart(history) {
     rsSeries.setData(rsData);
     volumeSeries.setData(volumeData);
 
-    // Línea base RS en 100 (referencia: paridad con SPY)
+    // Línea base MRS en 0 (por encima = supera al SPY, por debajo = queda por detrás)
     if (rsData.length > 0) {
         rsSeries.createPriceLine({
-            price: 100,
+            price: 0,
             color: '#94a3b8',
             lineWidth: 1,
             lineStyle: LightweightCharts.LineStyle.Dashed,
@@ -262,8 +259,8 @@ function createChart(history) {
         }
         const rs = param.seriesData.get(rsSeries);
         if (rs) {
-            const rsColor = rs.value >= 100 ? '#8b5cf6' : '#a78bfa';
-            html += ` <span style="color:${rsColor}">RS:${rs.value.toFixed(1)}</span>`;
+            const rsColor = rs.value >= 0 ? '#8b5cf6' : '#a78bfa';
+            html += ` <span style="color:${rsColor}">MRS:${rs.value.toFixed(1)}</span>`;
         }
         const vol = param.seriesData.get(volumeSeries);
         if (vol) {

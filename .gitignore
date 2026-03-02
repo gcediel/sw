@@ -50,3 +50,8 @@ htmlcov/
 # Backups
 *.bak
 *.backup
+
+# Ficheros de análisis locales
+12data_stocks.csv
+weinstein_operativa.md
+Estudio*
