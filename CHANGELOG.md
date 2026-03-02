@@ -1,5 +1,45 @@
 # Changelog - Sistema Weinstein
 
+## [0.4.0] - 2026-03-02
+
+### ✨ Nuevas Funcionalidades
+
+#### Mansfield Relative Strength (MRS)
+- **Gráfico:** panel central sustituye la RS normalizada a 100 por el MRS real, oscilando alrededor de 0. Linea base punteada en 0. Color morado cuando MRS > 0, mas claro cuando MRS < 0. Tooltip muestra "MRS:X.X"
+- **Backend:** calculo correcto del MRS en `web/main.py`: se cargan 156 semanas (104 visibles + 52 de precalentamiento para la MA52). Formula: `MRS = (rs_ratio / MA52_rs_ratio - 1) × 100`
+- **Filtro de senales:** `signals.py` descarta senales BUY cuando MRS ≤ 0 (la accion no supera al SPY respecto a su media historica de 52 semanas)
+
+#### Filtro de Volumen en Ruptura
+- Las senales BUY requieren que el volumen de la semana de ruptura sea ≥ 1.5× la media de las semanas de la base (parametro `VOLUME_SPIKE_THRESHOLD`). Confirma que la ruptura esta respaldada por interes real del mercado
+
+#### Script `regenerate_buy_signals.py`
+- Utilidad para borrar senales BUY de un periodo y regenerarlas con los filtros actuales
+- Uso: `python scripts/regenerate_buy_signals.py [--weeks N] [--dry-run]`
+- Permite aplicar nuevos filtros retroactivamente sin esperar al proximo proceso semanal
+
+### 🔧 Mejoras Tecnicas
+
+#### Backtest alineado con signals.py
+- `backtest_v3.py` reescrito para replicar exactamente la logica de `_is_valid_buy_breakout`: trabaja sobre la lista filtrada por MA30/slope (igual que el generador de senales), aplica todos los criterios (resistencia, base solida, volumen y MRS)
+- Resultado: backtest coherente con lo que el sistema generaria en produccion
+
+### 📊 Impacto de los Nuevos Filtros
+
+Comparativa backtest antes/despues de los nuevos filtros:
+
+| Metrica | Sin filtros | Con filtros |
+|---------|-------------|-------------|
+| Operaciones | 191 | 108 |
+| Win rate | 35.6% | 52.8% |
+| Retorno promedio | +1.35% | +2.36% |
+| Retorno mediano | -7.35% | +0.94% |
+| Salidas por stop loss | 92.7% | 35.2% |
+| Duracion media | 27 dias | 80 dias |
+
+Las señales del 27-feb-2026 se redujeron de 52 a 6 tras aplicar los filtros retroactivamente.
+
+---
+
 ## [0.3.0] - 2025-02-12
 
 ### ✨ Nuevas Funcionalidades

@@ -67,7 +67,8 @@ stanweinstein/
 │   ├── analyze_initial.py          # Analisis historico inicial
 │   ├── load_stocks_from_csv.py     # Carga acciones desde CSV
 │   ├── load_missing_historical.py  # Carga datos faltantes
-│   └── backtest_*.py               # Scripts de backtesting
+│   ├── backtest_v3.py              # Backtest completo (mismos filtros que signals.py)
+│   └── regenerate_buy_signals.py   # Regenera senales BUY recientes con filtros actuales
 ├── web/                            # Aplicacion web
 │   ├── main.py                     # FastAPI: rutas, API, middleware
 │   ├── static/
@@ -339,18 +340,26 @@ Etapa 1: (precio cerca o debajo de MA30) Y (pendiente plana o bajando) Y etapa_a
 
 ### 6.5 `app/signals.py` - Generacion de senales
 
-Clase `SignalGenerator` que detecta transiciones entre etapas.
+Clase `SignalGenerator` que detecta senales de trading aplicando la metodologia Weinstein completa.
 
 **Tipos de senal:**
-- **BUY:** Etapa 1 → 2 (ruptura alcista). Se descarta si el precio esta >20% por encima de la MA30 (`MAX_PRICE_DISTANCE_FOR_BUY`), ya que no seria una ruptura de consolidacion genuina
+- **BUY:** Ruptura alcista con confirmacion multiple. Criterios (todos obligatorios):
+  1. Precio supera el maximo de las ultimas 30 semanas con al menos 1% de margen (ruptura de resistencia)
+  2. MA30 con pendiente positiva en la semana de ruptura
+  3. Precio no demasiado extendido sobre la MA30 (≤ 15%)
+  4. Base solida previa: MA30 plana en ≥ 75% de las ultimas 16 semanas
+  5. Volumen de ruptura ≥ 1.5× la media de volumen de las semanas de base (confirmacion de volumen)
+  6. Mansfield Relative Strength > 0 (la accion supera al SPY respecto a su propia media de 52 semanas)
+  7. Mercado alcista: SPY en tendencia alcista (precio ≥ MA30 × 0.97 y slope ≥ 0)
 - **SELL:** Etapa 2 → 4 o Etapa 3 → 4 (ruptura bajista)
-- **STAGE_CHANGE:** Cualquier otra transicion
+- **STAGE_CHANGE:** Transicion Etapa 2 → 3
 
 **Metodos principales:**
-- `detect_stage_change(stock_id, current_week, previous_week)` - Detecta cambio
-- `classify_signal(stage_from, stage_to)` - Clasifica tipo de senal
-- `generate_signals_for_all_stocks(weeks_back=10)` - Genera para todas
-- `get_unnotified_signals(days=14)` - Obtiene senales pendientes de notificar (solo de los ultimos 14 dias, para evitar enviar senales historicas antiguas cuando se incorporan nuevas acciones)
+- `_is_valid_buy_breakout(weekly_all, idx)` - Valida criterios de ruptura (resistencia, base, volumen)
+- `_compute_mrs(weekly_all, idx)` - Calcula Mansfield RS para un punto concreto
+- `_market_is_bullish(week_date)` - Comprueba si SPY esta en tendencia alcista
+- `generate_signals_for_all_stocks(weeks_back=10)` - Genera senales para todas las acciones
+- `get_unnotified_signals(days=14)` - Senales pendientes de notificar (ultimos 14 dias)
 - `mark_signals_as_notified(signal_ids)` - Marca como notificadas
 
 ### 6.6 `app/auth.py` - Autenticacion
@@ -403,7 +412,7 @@ La aplicacion usa sesiones con cookie firmada:
 |----------|------------|-------------|
 | `GET /api/dashboard/stats` | - | Estadisticas: total acciones, distribucion por etapas, senales recientes, acciones no actualizadas (diario/semanal) |
 | `GET /api/stocks` | stage, search, limit, offset | Lista paginada de acciones con filtros |
-| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC + volumen + fuerza relativa vs SPY), senales |
+| `GET /api/stock/{ticker}` | - | Detalle completo: metricas, historial 104 semanas (OHLC + volumen + MRS), senales |
 | `GET /api/signals` | signal_type, days, limit | Senales recientes con filtros |
 | `GET /api/watchlist` | - | Acciones en Etapa 2 ordenadas por pendiente MA30 |
 | `GET /api/health` | - | Estado del servicio |
@@ -447,7 +456,7 @@ Cada pagina tiene su fichero JS que consume la API y actualiza el DOM:
 
 - **dashboard.js** - Carga estadisticas de `/api/dashboard/stats`, muestra distribucion por etapas, senales recientes, top acciones en Etapa 2 e indicadores de acciones no actualizadas (badges verde/amarillo para datos diarios y semanales)
 - **stocks.js** - Filtrado por etapa, busqueda por ticker/nombre, paginacion
-- **stock_detail.js** - Grafico con tres paneles apilados usando Lightweight Charts: (1) velas japonesas OHLC con MA30 superpuesta (60% superior), (2) linea de Fuerza Relativa vs SPY normalizada a 100 con linea base punteada (18% central), (3) histograma de volumen con barras verdes/rojas segun direccion de la vela (18% inferior). Periodos seleccionables (6M, 1A, 2A, Todo). Tooltip muestra OHLC, MA30, RS y volumen al pasar el cursor. Incluye historial de etapas, senales y modal de compra rapida pre-relleno con precio y MA30
+- **stock_detail.js** - Grafico con tres paneles apilados usando Lightweight Charts: (1) velas japonesas OHLC con MA30 superpuesta (60% superior), (2) linea de Mansfield Relative Strength (MRS) con linea base punteada en 0 (18% central), (3) histograma de volumen con barras verdes/rojas segun direccion de la vela (18% inferior). Periodos seleccionables (6M, 1A, 2A, Todo). Tooltip muestra OHLC, MA30, MRS y volumen al pasar el cursor. Incluye historial de etapas, senales y modal de compra rapida pre-relleno con precio y MA30
 - **signals.js** - Filtros por tipo (BUY/SELL) y periodo (30/90/180/365 dias)
 - **watchlist.js** - Carga acciones en Etapa 2 desde `/api/watchlist`
 - **portfolio.js** - Cartera: carga posiciones abiertas con P&L, formularios inline para editar stop loss y cerrar posicion, historial de cerradas, stats globales (P&L abierto / cerrado / global)
@@ -579,11 +588,14 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 | Parametro | Valor | Descripcion |
 |-----------|-------|-------------|
 | `MIN_WEEKS_FOR_ANALYSIS` | 35 | Semanas minimas para analizar (30 para MA30 + 5 margen) |
-| `MA30_SLOPE_THRESHOLD` | 0.015 (1.5%) | Cambio minimo semanal de MA30 para considerar tendencia |
-| `PRICE_MA30_THRESHOLD` | 0.05 (5%) | Distancia maxima para considerar "cerca de MA30" |
-| `MAX_PRICE_DISTANCE_FOR_BUY` | 0.20 (20%) | Distancia maxima precio/MA30 para validar senal BUY |
-| `VOLUME_SPIKE_THRESHOLD` | 1.5 (150%) | Umbral de pico de volumen |
-| `RATE_LIMIT_DELAY` | 2 seg | Pausa entre peticiones API |
+| `MA30_SLOPE_THRESHOLD` | 0.015 (1.5%) | Umbral de salida de Etapa 2/4 (histéresis baja) |
+| `MA30_SLOPE_ENTRY_THRESHOLD` | 0.025 (2.5%) | Umbral de entrada en Etapa 2/4 (histéresis alta) |
+| `MAX_PRICE_DISTANCE_FOR_BUY` | 0.15 (15%) | Distancia maxima precio/MA30 para senal BUY valida |
+| `BUY_RESISTANCE_WEEKS` | 30 | Semanas para calcular nivel de resistencia (maximos) |
+| `BUY_MIN_BASE_WEEKS` | 16 | Semanas minimas de base previa con MA30 plana |
+| `BUY_MAX_BASE_SLOPE` | 0.008 (0.8%) | Pendiente maxima de MA30 en la base (plana) |
+| `VOLUME_SPIKE_THRESHOLD` | 1.5 (150%) | Volumen minimo de ruptura vs media de la base |
+| `RATE_LIMIT_DELAY` | 8 seg | Pausa entre peticiones API |
 | `MAX_RETRIES` | 3 | Reintentos maximos por peticion |
 | `RETRY_DELAY` | 5 seg | Pausa entre reintentos |
 
@@ -808,25 +820,31 @@ El grafico de la pagina `/stock/{ticker}` muestra tres paneles apilados en un un
 | Central | 18% | Linea de Fuerza Relativa vs SPY | Violeta `#8b5cf6` |
 | Inferior | 18% | Histograma de volumen semanal | Verde/rojo semitransparente |
 
-### Fuerza Relativa vs SPY
+### Mansfield Relative Strength (MRS)
 
-Implementa el concepto clave de la metodologia Weinstein: comparar el comportamiento de la accion con el mercado de referencia (S&P 500).
+Implementa el indicador de Fuerza Relativa de Mansfield, el indicador clave de la metodologia Weinstein para comparar el comportamiento de cada accion con el mercado de referencia (S&P 500).
 
-**Calculo:**
-- El ETF **SPY** (SPDR S&P 500 ETF, ticker interno `SPY`, exchange `INDEX`) sirve como referencia de mercado
-- El backend calcula el ratio bruto: `rs = close_accion / close_SPY` para cada semana donde existan datos de ambos
-- El frontend normaliza el ratio al inicio del periodo seleccionado: `RS_normalizado = (rs / rs_base) * 100`
-- Resultado: el RS empieza siempre en 100 al principio del periodo visible y evoluciona segun la accion bata o pierda al SPY
+**Formula:**
+```
+RS_ratio = close_accion / close_SPY   (semanal)
+MA52_RS  = media movil de 52 semanas del RS_ratio
+MRS      = (RS_ratio / MA52_RS - 1) × 100
+```
+
+**Calculo en el backend (`web/main.py`):**
+- Se cargan 156 semanas de datos (104 de visualizacion + 52 de precalentamiento para la MA52)
+- El campo `mrs` se calcula para cada semana del historico visible
+- Las primeras semanas sin 52 semanas de historia previa devuelven `mrs = null`
 
 **Interpretacion:**
-- `RS > 100`: la accion ha superado al SPY desde el inicio del periodo seleccionado
-- `RS < 100`: la accion ha quedado por detras del SPY
-- Linea ascendente: fortaleza relativa creciente (positivo en Weinstein para confirmar Etapa 2)
-- Linea descendente: debilidad relativa (senal de alerta en cualquier etapa)
+- `MRS > 0`: la accion supera al SPY respecto a su propia media historica de los ultimos 12 meses → fortaleza relativa positiva
+- `MRS < 0`: la accion queda por detras del SPY respecto a su media historica → debilidad relativa
+- `MRS` ascendente: mejora de la fuerza relativa (confirma Etapa 2)
+- `MRS` descendente: deterioro de la fuerza relativa (senal de alerta)
 
-**Linea base:** linea de puntos gris en RS = 100 para facilitar la lectura visual.
+**Linea base:** linea de puntos gris en MRS = 0.
 
-**Nota:** el RS se recalcula al cambiar el periodo (6M, 1A, 2A, Todo), por lo que el punto de partida siempre es el inicio del periodo seleccionado.
+**Uso en filtro de senales:** el generador de senales (`signals.py`) descarta senales BUY cuando `MRS ≤ 0`, exigiendo que la accion supere al mercado en el momento de la ruptura.
 
 ### Periodos seleccionables
 
@@ -851,8 +869,8 @@ El endpoint `GET /api/stock/{ticker}` devuelve en cada entrada del historial:
   "volume": 4500000,
   "ma30": 118.90,
   "stage": 2,
-  "rs": 0.283741
+  "mrs": 4.32
 }
 ```
 
-El campo `rs` es el ratio bruto `close / spy_close`. La normalizacion a 100 se realiza en el frontend para adaptarse al periodo seleccionado dinamicamente. Si no hay dato de SPY para esa semana, `rs` es `null` y la semana se omite del panel RS.
+El campo `mrs` es el Mansfield RS calculado directamente en el backend. Es `null` si no hay suficientes semanas de historia de SPY para el calculo.
