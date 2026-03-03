@@ -20,11 +20,11 @@ async function loadWatchlist() {
         const tbody = document.getElementById('watchlist-tbody');
 
         if (data.stocks.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay acciones en Etapa 2</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay acciones en Etapa 2</td></tr>';
             return;
         }
 
-        tbody.innerHTML = data.stocks.map((stock, index) => {
+        tbody.innerHTML = data.stocks.map((stock) => {
             const distanceMA30 = stock.ma30
                 ? (((stock.close - stock.ma30) / stock.ma30) * 100).toFixed(2)
                 : 'N/A';
@@ -35,7 +35,6 @@ async function loadWatchlist() {
             const slopeClass = slopePct !== 'N/A' && slopePct > 0 ? 'positive' : '';
             return `
             <tr>
-                <td>${index + 1}</td>
                 <td><a href="${BASE_PATH}/stock/${stock.ticker}" class="ticker-link">${stock.ticker}</a></td>
                 <td>${truncate(stock.name, 40)}</td>
                 <td>$${stock.close.toFixed(2)}</td>
