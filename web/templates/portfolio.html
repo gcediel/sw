@@ -180,6 +180,60 @@
             </div>
         </div>
 
+        <!-- Formulario edición posición abierta -->
+        <div id="edit-open-card" class="buy-form-card">
+            <h4>Editar posición</h4>
+            <input type="hidden" id="eo-id">
+            <div class="buy-form-grid">
+                <div class="form-group">
+                    <label for="eo-entry-date">Fecha entrada</label>
+                    <input type="date" id="eo-entry-date">
+                </div>
+                <div class="form-group">
+                    <label for="eo-entry-price">Precio compra</label>
+                    <input type="number" id="eo-entry-price" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="eo-qty">Cantidad</label>
+                    <input type="number" id="eo-qty" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="eo-stop">Stop Loss</label>
+                    <input type="number" id="eo-stop" step="0.01" min="0.01">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="eo-notes">Notas</label>
+                    <input type="text" id="eo-notes" placeholder="Observaciones...">
+                </div>
+            </div>
+            <div id="eo-error" class="alert alert-error" style="display:none; margin-bottom:0.75rem;"></div>
+            <div style="display:flex; gap:0.75rem;">
+                <button class="btn btn-primary" onclick="saveEdit()">Guardar cambios</button>
+                <button class="btn btn-cancel" onclick="cancelEditOpen()">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Formulario cierre posición abierta -->
+        <div id="close-open-card" class="buy-form-card" style="background:#fff5f5; border-color:#fca5a5;">
+            <h4 style="color:#dc2626;">Cerrar posición</h4>
+            <input type="hidden" id="co-id">
+            <div class="buy-form-grid">
+                <div class="form-group">
+                    <label for="co-exit-date">Fecha de venta</label>
+                    <input type="date" id="co-exit-date">
+                </div>
+                <div class="form-group">
+                    <label for="co-exit-price">Precio de venta</label>
+                    <input type="number" id="co-exit-price" step="0.01" min="0.01">
+                </div>
+            </div>
+            <div id="co-error" class="alert alert-error" style="display:none; margin-bottom:0.75rem;"></div>
+            <div style="display:flex; gap:0.75rem;">
+                <button class="btn btn-danger" onclick="closePosition()">Confirmar cierre</button>
+                <button class="btn btn-cancel" onclick="cancelCloseOpen()">Cancelar</button>
+            </div>
+        </div>
+
         <!-- Formulario edición posición cerrada -->
         <div id="edit-closed-card" class="edit-closed-card">
             <h4>Editar posición cerrada</h4>
@@ -273,7 +327,7 @@
         <div id="tab-open" class="tab-panel active">
             <div id="portfolio-alert" class="alert" style="display:none;"></div>
             <div class="table-responsive">
-                <table>
+                <table id="open-positions-table">
                     <thead>
                         <tr>
                             <th>Ticker</th>

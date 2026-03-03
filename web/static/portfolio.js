@@ -2,14 +2,12 @@
 
 const BASE_PATH = window.BASE_PATH || '';
 
-// Estado de formularios inline por posición
-let activeInlineForm = null;  // { positionId, type }
+let openDT = null;
 let historyDT = null;
 let openPositionsMap = {};    // id -> position data (abiertas)
 let historyPositionsMap = {}; // id -> position data (cerradas)
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Fecha de hoy como default del formulario de compra
     document.getElementById('bf-date').value = new Date().toISOString().slice(0, 10);
     loadPortfolio();
     loadHistory();
@@ -38,13 +36,12 @@ function toggleBuyForm(ticker, price, stopSuggestion) {
         card.style.display = 'none';
         return;
     }
-    // Pre-rellenar si se pasaron datos
     if (ticker) document.getElementById('bf-ticker').value = ticker;
     if (price) document.getElementById('bf-price').value = price;
     if (stopSuggestion) document.getElementById('bf-stop').value = stopSuggestion;
     document.getElementById('bf-date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('buy-form-error').style.display = 'none';
-    document.getElementById('edit-closed-card').style.display = 'none';
+    hideAllCards();
     card.style.display = 'block';
     document.getElementById('bf-ticker').focus();
 }
@@ -100,6 +97,12 @@ function clearBuyForm() {
     document.getElementById('buy-form-error').style.display = 'none';
 }
 
+function hideAllCards() {
+    ['buy-form-card', 'edit-open-card', 'close-open-card', 'edit-closed-card'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+}
+
 // ============================================================
 // CARGAR POSICIONES ABIERTAS
 // ============================================================
@@ -116,7 +119,9 @@ async function loadPortfolio() {
 }
 
 function renderOpenPositions(positions) {
+    if (openDT) { openDT.destroy(); openDT = null; }
     openPositionsMap = {};
+
     const tbody = document.getElementById('open-positions-tbody');
     if (!positions.length) {
         tbody.innerHTML = '<tr><td colspan="11" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones abiertas. Abre una nueva posición con el botón "Nueva posición".</td></tr>';
@@ -133,9 +138,8 @@ function renderOpenPositions(positions) {
         const notesHtml = p.notes
             ? `<span class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</span>`
             : '-';
-
         return `
-        <tr class="${rowClass}" id="row-${p.id}">
+        <tr class="${rowClass}">
             <td><strong><a href="${BASE_PATH}/stock/${p.ticker}">${esc(p.ticker)}</a></strong></td>
             <td>${p.entry_date}</td>
             <td>${fmtPrice(p.entry_price)}</td>
@@ -151,71 +155,57 @@ function renderOpenPositions(positions) {
                 <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="openCloseForm(${p.id}, ${p.current_price})">Cerrar</button>
                 <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
             </td>
-        </tr>
-        <tr id="inline-${p.id}" style="display:none;">
-            <td colspan="11" style="padding:0;">
-                <div id="inline-content-${p.id}"></div>
-            </td>
-        </tr>
-        `;
+        </tr>`;
     }).join('');
+
+    openDT = new simpleDatatables.DataTable('#open-positions-table', {
+        perPage: 25,
+        perPageSelect: [25, 50],
+        sanitize: false,
+        labels: {
+            placeholder: "Buscar...",
+            noRows: "No hay posiciones abiertas",
+            info: "Mostrando {start} a {end} de {rows} posiciones",
+            perPage: "por página",
+        },
+        columns: [{ select: 10, sortable: false }],
+    });
 }
 
 // ============================================================
-// FORMULARIO INLINE: EDITAR POSICIÓN ABIERTA (completo)
+// CARD: EDITAR POSICIÓN ABIERTA
 // ============================================================
 
 function openEditForm(id) {
-    closeActiveInline();
-    activeInlineForm = {id, type: 'edit'};
     const p = openPositionsMap[id];
     if (!p) return;
 
-    const content = document.getElementById(`inline-content-${id}`);
-    content.innerHTML = `
-        <div class="inline-form">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Fecha entrada</label>
-                    <input type="date" id="edit-date-${id}" value="${p.entry_date}">
-                </div>
-                <div class="form-group">
-                    <label>Precio compra</label>
-                    <input type="number" id="edit-price-${id}" step="0.01" min="0.01" value="${p.entry_price}">
-                </div>
-                <div class="form-group">
-                    <label>Cantidad</label>
-                    <input type="number" id="edit-qty-${id}" step="0.01" min="0.01" value="${p.quantity}">
-                </div>
-                <div class="form-group">
-                    <label>Stop Loss</label>
-                    <input type="number" id="edit-stop-${id}" step="0.01" min="0.01" value="${p.stop_loss}">
-                </div>
-                <div class="form-group">
-                    <label>Notas</label>
-                    <input type="text" id="edit-notes-${id}" value="${esc(p.notes)}" placeholder="Observaciones..." style="width:200px;">
-                </div>
-                <div class="form-group">
-                    <label>&nbsp;</label>
-                    <div style="display:flex; gap:0.5rem;">
-                        <button class="btn btn-sm btn-primary" onclick="saveEdit(${id})">Guardar</button>
-                        <button class="btn btn-sm btn-cancel" onclick="closeActiveInline()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-            <div id="edit-error-${id}" class="alert alert-error" style="display:none; margin-top:0.5rem;"></div>
-        </div>
-    `;
-    document.getElementById(`inline-${id}`).style.display = '';
+    document.getElementById('eo-id').value = id;
+    document.getElementById('eo-entry-date').value = p.entry_date;
+    document.getElementById('eo-entry-price').value = p.entry_price;
+    document.getElementById('eo-qty').value = p.quantity;
+    document.getElementById('eo-stop').value = p.stop_loss;
+    document.getElementById('eo-notes').value = p.notes || '';
+    document.getElementById('eo-error').style.display = 'none';
+
+    hideAllCards();
+    const card = document.getElementById('edit-open-card');
+    card.style.display = 'block';
+    card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
-async function saveEdit(id) {
-    const entry_date = document.getElementById(`edit-date-${id}`).value;
-    const entry_price = parseFloat(document.getElementById(`edit-price-${id}`).value);
-    const quantity = parseFloat(document.getElementById(`edit-qty-${id}`).value);
-    const stop_loss = parseFloat(document.getElementById(`edit-stop-${id}`).value);
-    const notes = document.getElementById(`edit-notes-${id}`).value.trim();
-    const errEl = document.getElementById(`edit-error-${id}`);
+function cancelEditOpen() {
+    document.getElementById('edit-open-card').style.display = 'none';
+}
+
+async function saveEdit() {
+    const id = document.getElementById('eo-id').value;
+    const entry_date = document.getElementById('eo-entry-date').value;
+    const entry_price = parseFloat(document.getElementById('eo-entry-price').value);
+    const quantity = parseFloat(document.getElementById('eo-qty').value);
+    const stop_loss = parseFloat(document.getElementById('eo-stop').value);
+    const notes = document.getElementById('eo-notes').value.trim();
+    const errEl = document.getElementById('eo-error');
 
     if (!entry_date || isNaN(entry_price) || isNaN(quantity) || isNaN(stop_loss)) {
         errEl.textContent = 'Completa todos los campos';
@@ -240,7 +230,7 @@ async function saveEdit(id) {
             errEl.style.display = 'block';
             return;
         }
-        closeActiveInline();
+        document.getElementById('edit-open-card').style.display = 'none';
         showAlert('Posición actualizada', 'success');
         loadPortfolio();
         loadSummary();
@@ -251,43 +241,30 @@ async function saveEdit(id) {
 }
 
 // ============================================================
-// FORMULARIO INLINE: CERRAR POSICIÓN
+// CARD: CERRAR POSICIÓN ABIERTA
 // ============================================================
 
 function openCloseForm(id, suggestedPrice) {
-    closeActiveInline();
-    activeInlineForm = {id, type: 'close'};
+    document.getElementById('co-id').value = id;
+    document.getElementById('co-exit-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('co-exit-price').value = suggestedPrice;
+    document.getElementById('co-error').style.display = 'none';
 
-    const content = document.getElementById(`inline-content-${id}`);
-    content.innerHTML = `
-        <div class="inline-form" style="background:#fff5f5; border-color:#fca5a5;">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Fecha de venta</label>
-                    <input type="date" id="close-date-${id}" value="${new Date().toISOString().slice(0,10)}">
-                </div>
-                <div class="form-group">
-                    <label>Precio de venta</label>
-                    <input type="number" id="close-price-${id}" step="0.01" min="0.01" value="${suggestedPrice}">
-                </div>
-                <div class="form-group">
-                    <label>&nbsp;</label>
-                    <div style="display:flex; gap:0.5rem;">
-                        <button class="btn btn-sm btn-danger" onclick="closePosition(${id})">Confirmar cierre</button>
-                        <button class="btn btn-sm btn-cancel" onclick="closeActiveInline()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-            <div id="close-error-${id}" class="alert alert-error" style="display:none; margin-top:0.5rem;"></div>
-        </div>
-    `;
-    document.getElementById(`inline-${id}`).style.display = '';
+    hideAllCards();
+    const card = document.getElementById('close-open-card');
+    card.style.display = 'block';
+    card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
-async function closePosition(id) {
-    const exit_date = document.getElementById(`close-date-${id}`).value;
-    const exit_price = parseFloat(document.getElementById(`close-price-${id}`).value);
-    const errEl = document.getElementById(`close-error-${id}`);
+function cancelCloseOpen() {
+    document.getElementById('close-open-card').style.display = 'none';
+}
+
+async function closePosition() {
+    const id = document.getElementById('co-id').value;
+    const exit_date = document.getElementById('co-exit-date').value;
+    const exit_price = parseFloat(document.getElementById('co-exit-price').value);
+    const errEl = document.getElementById('co-error');
 
     if (!exit_date || isNaN(exit_price) || exit_price <= 0) {
         errEl.textContent = 'Completa fecha y precio de venta';
@@ -307,7 +284,7 @@ async function closePosition(id) {
             errEl.style.display = 'block';
             return;
         }
-        closeActiveInline();
+        document.getElementById('close-open-card').style.display = 'none';
         showAlert('Posición cerrada y movida al historial', 'success');
         loadPortfolio();
         loadHistory();
@@ -316,16 +293,6 @@ async function closePosition(id) {
         errEl.textContent = 'Error de conexión';
         errEl.style.display = 'block';
     }
-}
-
-function closeActiveInline() {
-    if (!activeInlineForm) return;
-    const row = document.getElementById(`inline-${activeInlineForm.id}`);
-    if (row) {
-        row.style.display = 'none';
-        document.getElementById(`inline-content-${activeInlineForm.id}`).innerHTML = '';
-    }
-    activeInlineForm = null;
 }
 
 async function deletePosition(id, ticker) {
@@ -368,7 +335,6 @@ function renderHistory(positions, totalPnl) {
 
     const tbody = document.getElementById('history-tbody');
 
-    // Mostrar total fuera de la DataTable
     const totalDiv = document.getElementById('history-total');
     if (totalDiv) {
         const totalClass = totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
@@ -420,7 +386,7 @@ function renderHistory(positions, totalPnl) {
 }
 
 // ============================================================
-// EDITAR POSICIÓN CERRADA (card flotante)
+// CARD: EDITAR POSICIÓN CERRADA
 // ============================================================
 
 function openEditClosedCard(id) {
@@ -436,8 +402,7 @@ function openEditClosedCard(id) {
     document.getElementById('ec-notes').value = p.notes || '';
     document.getElementById('ec-error').style.display = 'none';
 
-    // Ocultar buy-form si está abierto
-    document.getElementById('buy-form-card').style.display = 'none';
+    hideAllCards();
     const card = document.getElementById('edit-closed-card');
     card.style.display = 'block';
     card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
