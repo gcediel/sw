@@ -5,6 +5,8 @@ const BASE_PATH = window.BASE_PATH || '';
 // Estado de formularios inline por posición
 let activeInlineForm = null;  // { positionId, type }
 let historyDT = null;
+let openPositionsMap = {};    // id -> position data (abiertas)
+let historyPositionsMap = {}; // id -> position data (cerradas)
 
 document.addEventListener('DOMContentLoaded', () => {
     // Fecha de hoy como default del formulario de compra
@@ -42,6 +44,7 @@ function toggleBuyForm(ticker, price, stopSuggestion) {
     if (stopSuggestion) document.getElementById('bf-stop').value = stopSuggestion;
     document.getElementById('bf-date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('buy-form-error').style.display = 'none';
+    document.getElementById('edit-closed-card').style.display = 'none';
     card.style.display = 'block';
     document.getElementById('bf-ticker').focus();
 }
@@ -108,22 +111,28 @@ async function loadPortfolio() {
         renderOpenPositions(data.positions || []);
     } catch (e) {
         document.getElementById('open-positions-tbody').innerHTML =
-            '<tr><td colspan="10" class="text-center">Error al cargar posiciones</td></tr>';
+            '<tr><td colspan="11" class="text-center">Error al cargar posiciones</td></tr>';
     }
 }
 
 function renderOpenPositions(positions) {
+    openPositionsMap = {};
     const tbody = document.getElementById('open-positions-tbody');
     if (!positions.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones abiertas. Abre una nueva posición con el botón "Nueva posición".</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones abiertas. Abre una nueva posición con el botón "Nueva posición".</td></tr>';
         return;
     }
+
+    positions.forEach(p => { openPositionsMap[p.id] = p; });
 
     tbody.innerHTML = positions.map(p => {
         const rowClass = p.stop_triggered ? 'stop-triggered-row' : '';
         const pnlClass = p.pnl_eur >= 0 ? 'pnl-positive' : 'pnl-negative';
         const distClass = p.dist_stop_pct < 5 ? 'pnl-negative' : (p.dist_stop_pct < 10 ? '' : 'pnl-positive');
-        const stopIcon = p.stop_triggered ? '🚨 ' : '';
+        const stopIcon = p.stop_triggered ? '<span class="stop-icon" title="Stop Loss disparado">&#9888;</span> ' : '';
+        const notesHtml = p.notes
+            ? `<span class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</span>`
+            : '-';
 
         return `
         <tr class="${rowClass}" id="row-${p.id}">
@@ -136,14 +145,15 @@ function renderOpenPositions(positions) {
             <td class="${pnlClass}">${fmtPct(p.pnl_pct)}</td>
             <td>${stopIcon}${fmtPrice(p.stop_loss)}</td>
             <td class="${distClass}">${fmtPct(p.dist_stop_pct)}</td>
+            <td>${notesHtml}</td>
             <td style="white-space:nowrap;">
-                <button class="btn btn-sm btn-primary" onclick="openEditStopForm(${p.id}, ${p.stop_loss}, '${esc(p.notes)}')">Editar stop</button>
+                <button class="btn btn-sm btn-primary" onclick="openEditForm(${p.id})">Editar</button>
                 <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="openCloseForm(${p.id}, ${p.current_price})">Cerrar</button>
                 <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
             </td>
         </tr>
         <tr id="inline-${p.id}" style="display:none;">
-            <td colspan="10" style="padding:0;">
+            <td colspan="11" style="padding:0;">
                 <div id="inline-content-${p.id}"></div>
             </td>
         </tr>
@@ -152,46 +162,68 @@ function renderOpenPositions(positions) {
 }
 
 // ============================================================
-// FORMULARIO INLINE: EDITAR STOP
+// FORMULARIO INLINE: EDITAR POSICIÓN ABIERTA (completo)
 // ============================================================
 
-function openEditStopForm(id, currentStop, currentNotes) {
+function openEditForm(id) {
     closeActiveInline();
-    activeInlineForm = {id, type: 'stop'};
+    activeInlineForm = {id, type: 'edit'};
+    const p = openPositionsMap[id];
+    if (!p) return;
 
     const content = document.getElementById(`inline-content-${id}`);
     content.innerHTML = `
         <div class="inline-form">
             <div class="form-row">
                 <div class="form-group">
-                    <label>Nuevo Stop Loss</label>
-                    <input type="number" id="edit-stop-${id}" step="0.01" min="0.01" value="${currentStop}">
+                    <label>Fecha entrada</label>
+                    <input type="date" id="edit-date-${id}" value="${p.entry_date}">
+                </div>
+                <div class="form-group">
+                    <label>Precio compra</label>
+                    <input type="number" id="edit-price-${id}" step="0.01" min="0.01" value="${p.entry_price}">
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="edit-qty-${id}" step="0.01" min="0.01" value="${p.quantity}">
+                </div>
+                <div class="form-group">
+                    <label>Stop Loss</label>
+                    <input type="number" id="edit-stop-${id}" step="0.01" min="0.01" value="${p.stop_loss}">
                 </div>
                 <div class="form-group">
                     <label>Notas</label>
-                    <input type="text" id="edit-notes-${id}" value="${esc(currentNotes)}" placeholder="Observaciones..." style="width:240px;">
+                    <input type="text" id="edit-notes-${id}" value="${esc(p.notes)}" placeholder="Observaciones..." style="width:200px;">
                 </div>
                 <div class="form-group">
                     <label>&nbsp;</label>
                     <div style="display:flex; gap:0.5rem;">
-                        <button class="btn btn-sm btn-primary" onclick="saveStop(${id})">Guardar</button>
+                        <button class="btn btn-sm btn-primary" onclick="saveEdit(${id})">Guardar</button>
                         <button class="btn btn-sm btn-cancel" onclick="closeActiveInline()">Cancelar</button>
                     </div>
                 </div>
             </div>
-            <div id="edit-stop-error-${id}" class="alert alert-error" style="display:none; margin-top:0.5rem;"></div>
+            <div id="edit-error-${id}" class="alert alert-error" style="display:none; margin-top:0.5rem;"></div>
         </div>
     `;
     document.getElementById(`inline-${id}`).style.display = '';
 }
 
-async function saveStop(id) {
+async function saveEdit(id) {
+    const entry_date = document.getElementById(`edit-date-${id}`).value;
+    const entry_price = parseFloat(document.getElementById(`edit-price-${id}`).value);
+    const quantity = parseFloat(document.getElementById(`edit-qty-${id}`).value);
     const stop_loss = parseFloat(document.getElementById(`edit-stop-${id}`).value);
     const notes = document.getElementById(`edit-notes-${id}`).value.trim();
-    const errEl = document.getElementById(`edit-stop-error-${id}`);
+    const errEl = document.getElementById(`edit-error-${id}`);
 
-    if (isNaN(stop_loss) || stop_loss <= 0) {
-        errEl.textContent = 'El stop loss debe ser un número positivo';
+    if (!entry_date || isNaN(entry_price) || isNaN(quantity) || isNaN(stop_loss)) {
+        errEl.textContent = 'Completa todos los campos';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (entry_price <= 0 || quantity <= 0 || stop_loss <= 0) {
+        errEl.textContent = 'Precio, cantidad y stop loss deben ser positivos';
         errEl.style.display = 'block';
         return;
     }
@@ -200,7 +232,7 @@ async function saveStop(id) {
         const resp = await fetch(`${BASE_PATH}/api/portfolio/${id}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({stop_loss, notes})
+            body: JSON.stringify({entry_date, entry_price, quantity, stop_loss, notes})
         });
         const data = await resp.json();
         if (!resp.ok) {
@@ -209,7 +241,7 @@ async function saveStop(id) {
             return;
         }
         closeActiveInline();
-        showAlert('Stop loss actualizado', 'success');
+        showAlert('Posición actualizada', 'success');
         loadPortfolio();
         loadSummary();
     } catch (e) {
@@ -326,12 +358,13 @@ async function loadHistory() {
         renderHistory(data.positions || [], data.total_pnl || 0);
     } catch (e) {
         document.getElementById('history-tbody').innerHTML =
-            '<tr><td colspan="8" class="text-center">Error al cargar historial</td></tr>';
+            '<tr><td colspan="10" class="text-center">Error al cargar historial</td></tr>';
     }
 }
 
 function renderHistory(positions, totalPnl) {
     if (historyDT) { historyDT.destroy(); historyDT = null; }
+    historyPositionsMap = {};
 
     const tbody = document.getElementById('history-tbody');
 
@@ -343,12 +376,17 @@ function renderHistory(positions, totalPnl) {
     }
 
     if (!positions.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones cerradas en el historial.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="color:#6b7280; padding:2rem;">No hay posiciones cerradas en el historial.</td></tr>';
         return;
     }
 
+    positions.forEach(p => { historyPositionsMap[p.id] = p; });
+
     tbody.innerHTML = positions.map(p => {
         const pnlClass = p.pnl_eur >= 0 ? 'pnl-positive' : 'pnl-negative';
+        const notesHtml = p.notes
+            ? `<span class="notes-cell" title="${esc(p.notes)}">${esc(p.notes)}</span>`
+            : '-';
         return `
         <tr>
             <td><strong><a href="${BASE_PATH}/stock/${p.ticker}">${esc(p.ticker)}</a></strong></td>
@@ -359,7 +397,11 @@ function renderHistory(positions, totalPnl) {
             <td>${p.quantity}</td>
             <td class="${pnlClass}">${fmtEur(p.pnl_eur)}</td>
             <td class="${pnlClass}">${fmtPct(p.pnl_pct)}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button></td>
+            <td>${notesHtml}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-sm btn-primary" onclick="openEditClosedCard(${p.id})">Editar</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePosition(${p.id}, '${esc(p.ticker)}')">Eliminar</button>
+            </td>
         </tr>`;
     }).join('');
 
@@ -373,8 +415,79 @@ function renderHistory(positions, totalPnl) {
             info: "Mostrando {start} a {end} de {rows} posiciones",
             perPage: "por página",
         },
-        columns: [{ select: 8, sortable: false }],
+        columns: [{ select: 9, sortable: false }],
     });
+}
+
+// ============================================================
+// EDITAR POSICIÓN CERRADA (card flotante)
+// ============================================================
+
+function openEditClosedCard(id) {
+    const p = historyPositionsMap[id];
+    if (!p) return;
+
+    document.getElementById('ec-id').value = id;
+    document.getElementById('ec-entry-date').value = p.entry_date;
+    document.getElementById('ec-exit-date').value = p.exit_date || '';
+    document.getElementById('ec-entry-price').value = p.entry_price;
+    document.getElementById('ec-exit-price').value = p.exit_price;
+    document.getElementById('ec-qty').value = p.quantity;
+    document.getElementById('ec-notes').value = p.notes || '';
+    document.getElementById('ec-error').style.display = 'none';
+
+    // Ocultar buy-form si está abierto
+    document.getElementById('buy-form-card').style.display = 'none';
+    const card = document.getElementById('edit-closed-card');
+    card.style.display = 'block';
+    card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function cancelEditClosed() {
+    document.getElementById('edit-closed-card').style.display = 'none';
+}
+
+async function saveEditClosed() {
+    const id = document.getElementById('ec-id').value;
+    const entry_date = document.getElementById('ec-entry-date').value;
+    const exit_date = document.getElementById('ec-exit-date').value;
+    const entry_price = parseFloat(document.getElementById('ec-entry-price').value);
+    const exit_price = parseFloat(document.getElementById('ec-exit-price').value);
+    const quantity = parseFloat(document.getElementById('ec-qty').value);
+    const notes = document.getElementById('ec-notes').value.trim();
+    const errEl = document.getElementById('ec-error');
+
+    if (!entry_date || !exit_date || isNaN(entry_price) || isNaN(exit_price) || isNaN(quantity)) {
+        errEl.textContent = 'Completa todos los campos obligatorios';
+        errEl.style.display = 'block';
+        return;
+    }
+    if (entry_price <= 0 || exit_price <= 0 || quantity <= 0) {
+        errEl.textContent = 'Precios y cantidad deben ser positivos';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const resp = await fetch(`${BASE_PATH}/api/portfolio/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({entry_date, exit_date, entry_price, exit_price, quantity, notes})
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            errEl.textContent = data.error || data.detail || 'Error al guardar';
+            errEl.style.display = 'block';
+            return;
+        }
+        document.getElementById('edit-closed-card').style.display = 'none';
+        showAlert('Posición cerrada actualizada', 'success');
+        loadHistory();
+        loadSummary();
+    } catch (e) {
+        errEl.textContent = 'Error de conexión';
+        errEl.style.display = 'block';
+    }
 }
 
 async function clearHistory() {

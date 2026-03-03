@@ -12,6 +12,7 @@
         .pnl-negative { color: #ef4444; font-weight: 600; }
         .stop-triggered-row { background: #fff5f5 !important; }
         .stop-triggered-row td { border-left: 3px solid #ef4444; }
+        .stop-icon { color: #ef4444; font-weight: bold; font-size: 1rem; }
         .inline-form {
             background: #f0f4ff;
             border: 1px solid #c7d2fe;
@@ -101,6 +102,19 @@
             font-size: 0.875rem;
         }
         .total-row { font-weight: 700; background: #f9fafb; }
+        .edit-closed-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+        .edit-closed-card h4 { margin: 0 0 1rem 0; color: #1d4ed8; }
+        .notes-cell {
+            max-width: 140px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -163,6 +177,43 @@
             <div style="display:flex; gap:0.75rem;">
                 <button class="btn btn-primary" onclick="saveBuy()">Guardar compra</button>
                 <button class="btn btn-cancel" onclick="toggleBuyForm()">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Formulario edición posición cerrada -->
+        <div id="edit-closed-card" class="edit-closed-card">
+            <h4>Editar posición cerrada</h4>
+            <input type="hidden" id="ec-id">
+            <div class="buy-form-grid">
+                <div class="form-group">
+                    <label for="ec-entry-date">Fecha entrada</label>
+                    <input type="date" id="ec-entry-date">
+                </div>
+                <div class="form-group">
+                    <label for="ec-exit-date">Fecha salida</label>
+                    <input type="date" id="ec-exit-date">
+                </div>
+                <div class="form-group">
+                    <label for="ec-entry-price">Precio compra</label>
+                    <input type="number" id="ec-entry-price" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="ec-exit-price">Precio venta</label>
+                    <input type="number" id="ec-exit-price" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="ec-qty">Cantidad</label>
+                    <input type="number" id="ec-qty" step="0.01" min="0.01">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="ec-notes">Notas</label>
+                    <input type="text" id="ec-notes" placeholder="Observaciones...">
+                </div>
+            </div>
+            <div id="ec-error" class="alert alert-error" style="display:none; margin-bottom:0.75rem;"></div>
+            <div style="display:flex; gap:0.75rem;">
+                <button class="btn btn-primary" onclick="saveEditClosed()">Guardar cambios</button>
+                <button class="btn btn-cancel" onclick="cancelEditClosed()">Cancelar</button>
             </div>
         </div>
 
@@ -234,11 +285,12 @@
                             <th>P&L %</th>
                             <th>Stop Loss</th>
                             <th>Dist. stop</th>
+                            <th>Notas</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="open-positions-tbody">
-                        <tr><td colspan="10" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="11" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -262,11 +314,12 @@
                             <th>Cantidad</th>
                             <th>P&L €</th>
                             <th>P&L %</th>
+                            <th>Notas</th>
                             <th data-sortable="false"></th>
                         </tr>
                     </thead>
                     <tbody id="history-tbody">
-                        <tr><td colspan="9" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="10" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>

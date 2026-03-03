@@ -778,7 +778,12 @@ class PositionCreate(BaseModel):
     notes: str = ""
 
 class PositionUpdate(BaseModel):
+    entry_date: str = None
+    entry_price: float = None
+    quantity: float = None
     stop_loss: float = None
+    exit_date: str = None    # solo para cerradas
+    exit_price: float = None  # solo para cerradas
     notes: str = None
 
 class PositionClose(BaseModel):
@@ -915,25 +920,48 @@ async def api_portfolio_create(data: PositionCreate):
 
 @app.put("/api/portfolio/{position_id}")
 async def api_portfolio_update(position_id: int, data: PositionUpdate):
-    """Actualizar stop loss y/o notas"""
+    """Actualizar campos de una posición (abiertas y cerradas)"""
     db = SessionLocal()
     try:
         pos = db.query(Position).filter(Position.id == position_id).first()
         if not pos:
             return JSONResponse(status_code=404, content={"error": "Posición no encontrada"})
-        if pos.status != 'OPEN':
-            return JSONResponse(status_code=400, content={"error": "Solo se pueden editar posiciones abiertas"})
 
+        if data.entry_date is not None:
+            try:
+                pos.entry_date = date_type.fromisoformat(data.entry_date)
+            except ValueError:
+                return JSONResponse(status_code=400, content={"error": "Formato de fecha de entrada inválido"})
+        if data.entry_price is not None:
+            if data.entry_price <= 0:
+                return JSONResponse(status_code=400, content={"error": "El precio de entrada debe ser positivo"})
+            pos.entry_price = data.entry_price
+        if data.quantity is not None:
+            if data.quantity <= 0:
+                return JSONResponse(status_code=400, content={"error": "La cantidad debe ser positiva"})
+            pos.quantity = data.quantity
         if data.stop_loss is not None:
             if data.stop_loss <= 0:
                 return JSONResponse(status_code=400, content={"error": "El stop loss debe ser positivo"})
             pos.stop_loss = data.stop_loss
+        if data.exit_date is not None:
+            try:
+                pos.exit_date = date_type.fromisoformat(data.exit_date)
+            except ValueError:
+                return JSONResponse(status_code=400, content={"error": "Formato de fecha de salida inválido"})
+        if data.exit_price is not None:
+            if data.exit_price <= 0:
+                return JSONResponse(status_code=400, content={"error": "El precio de salida debe ser positivo"})
+            pos.exit_price = data.exit_price
         if data.notes is not None:
             pos.notes = data.notes
 
         db.commit()
-        current_price = _get_current_price(db, pos.stock_id)
-        return _position_with_pnl(pos, current_price)
+        if pos.status == 'OPEN':
+            current_price = _get_current_price(db, pos.stock_id)
+            return _position_with_pnl(pos, current_price)
+        else:
+            return _position_closed_dict(pos)
     except Exception as e:
         db.rollback()
         return JSONResponse(status_code=500, content={"error": str(e)})
