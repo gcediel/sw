@@ -2,11 +2,12 @@
 """
 Limpieza de señales con fecha retroactiva (backdated).
 
-Elimina señales que fueron creadas durante la ejecución del 7-8 mar 2026
-pero con signal_date anterior al viernes 6 mar 2026 (el viernes real de esa semana).
+Muestra y elimina señales con signal_date entre RANGE_FROM y RANGE_TO.
+Rango por defecto: 22 feb – 5 mar 2026 (señales anteriores al último viernes
+que fueron generadas/enviadas por error en la ejecución del 7-8 mar 2026).
 
 Uso:
-    python scripts/cleanup_backdated_signals.py          # modo dry-run (solo muestra)
+    python scripts/cleanup_backdated_signals.py          # dry-run: solo muestra
     python scripts/cleanup_backdated_signals.py --delete  # elimina realmente
 """
 import sys
@@ -17,52 +18,55 @@ import argparse
 from datetime import date
 from app.database import SessionLocal, Signal, Stock
 
-# Señales creadas en la ejecución problemática (sábado/domingo 7-8 mar)
-# con signal_date anterior al último viernes (6 mar)
-CREATED_FROM = date(2026, 3, 7)   # fecha desde la que se consideran "de esa ejecución"
-LAST_FRIDAY  = date(2026, 3, 6)   # único signal_date válido para esa semana
+# Rango de signal_date a limpiar (señales retroactivas)
+RANGE_FROM = date(2026, 2, 22)  # 14 días antes del último viernes
+RANGE_TO   = date(2026, 3, 5)   # día anterior al último viernes (6 mar)
 
 
 def main(dry_run: bool):
     db = SessionLocal()
     try:
-        # Obtener señales a eliminar
-        rows = (
+        # Primero mostrar TODAS las señales recientes para diagnóstico
+        all_recent = (
             db.query(Signal, Stock)
             .join(Stock, Signal.stock_id == Stock.id)
-            .filter(
-                Signal.created_at >= CREATED_FROM,
-                Signal.signal_date < LAST_FRIDAY
-            )
+            .filter(Signal.signal_date >= date(2026, 2, 1))
             .order_by(Signal.signal_date.asc())
             .all()
         )
 
-        if not rows:
-            print("No se encontraron señales retroactivas. Nada que limpiar.")
-            return
-
-        print(f"{'MODO DRY-RUN — ' if dry_run else ''}Señales a eliminar: {len(rows)}\n")
+        print(f"=== Señales en BD desde 1 feb 2026 ({len(all_recent)} total) ===")
         print(f"{'Fecha señal':<14} {'Creada':<22} {'Ticker':<8} {'Tipo':<12} {'Precio':>8}")
         print("-" * 70)
-        for signal, stock in rows:
+        for signal, stock in all_recent:
+            marker = " ← RETROACTIVA" if RANGE_FROM <= signal.signal_date <= RANGE_TO else ""
             print(
                 f"{str(signal.signal_date):<14} "
                 f"{str(signal.created_at)[:19]:<22} "
                 f"{stock.ticker:<8} "
                 f"{signal.signal_type:<12} "
-                f"${float(signal.price):>7.2f}"
+                f"${float(signal.price):>7.2f}{marker}"
             )
 
-        if dry_run:
-            print(f"\nDry-run: no se eliminó nada. Ejecuta con --delete para confirmar.")
+        # Filtrar las retroactivas
+        rows = [
+            (s, st) for s, st in all_recent
+            if RANGE_FROM <= s.signal_date <= RANGE_TO
+        ]
+
+        print(f"\n=== Señales a eliminar: {len(rows)} ===")
+        if not rows:
+            print("Ninguna. Nada que limpiar.")
             return
 
-        # Eliminar
+        if dry_run:
+            print("Dry-run: no se eliminó nada. Ejecuta con --delete para confirmar.")
+            return
+
         ids = [s.id for s, _ in rows]
         deleted = db.query(Signal).filter(Signal.id.in_(ids)).delete(synchronize_session=False)
         db.commit()
-        print(f"\n✓ {deleted} señales eliminadas correctamente.")
+        print(f"✓ {deleted} señales eliminadas correctamente.")
 
     except Exception as e:
         db.rollback()
