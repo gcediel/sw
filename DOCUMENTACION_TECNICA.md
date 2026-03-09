@@ -25,7 +25,7 @@
 
 ## 1. Descripcion General
 
-Sistema de analisis tecnico basado en la metodologia de las 4 etapas de Stan Weinstein. Monitoriza ~396 acciones de distintos mercados (NASDAQ, NYSE, BME), detecta automaticamente la etapa en la que se encuentra cada accion, genera senales de compra/venta y las notifica via Telegram.
+Sistema de analisis tecnico basado en la metodologia de las 4 etapas de Stan Weinstein. Monitoriza ~1447 acciones de distintos mercados (NASDAQ, NYSE, LSE, XETRA, EPA, BME, MIL, AMS, SIX, STO), detecta automaticamente la etapa en la que se encuentra cada accion, genera senales de compra/venta y las notifica via Telegram.
 
 **Stack tecnologico:**
 - **Backend:** Python 3.11 + FastAPI
@@ -195,7 +195,7 @@ Controla el prefijo de URL para la aplicacion web:
 | id | INT, PK | Identificador |
 | ticker | VARCHAR(20), UNIQUE | Simbolo (ej: AAPL, SAN.MC) |
 | name | VARCHAR(255) | Nombre de la empresa |
-| exchange | VARCHAR(50) | Mercado (NASDAQ, NYSE, BME) |
+| exchange | VARCHAR(50) | Mercado (NASDAQ, NYSE, LSE, XETRA, EPA, BME, MIL, AMS, SIX, STO...) |
 | active | BOOLEAN | Si se monitoriza activamente |
 | created_at | TIMESTAMP | Fecha de creacion |
 
@@ -297,6 +297,17 @@ Clase `DataCollector` que gestiona la obtencion de datos OHLCV.
 - Yahoo Finance: `SAN.MC` (punto + sufijo de mercado)
 - TwelveData: `SAN:BME` (dos puntos + codigo de bolsa)
 
+| Sufijo Yahoo | Codigo TwelveData | Mercado |
+|---|---|---|
+| `.MC` | `:BME` | Madrid (BME) |
+| `.L` | `:LSE` | Londres (LSE) |
+| `.PA` | `:EPA` | Paris (Euronext) |
+| `.DE` | `:XETRA` | Frankfurt (XETRA) |
+| `.MI` | `:MIL` | Milan (Borsa Italiana) |
+| `.AS` | `:AMS` | Amsterdam (Euronext) |
+| `.SW` | `:SIX` | Zurich (SIX Swiss Exchange) |
+| `.ST` | `:STO` | Estocolmo (OMX Stockholm) |
+
 ### 6.3 `app/aggregator.py` - Agregacion semanal
 
 Clase `WeeklyAggregator` que transforma datos diarios en semanales.
@@ -358,7 +369,7 @@ Clase `SignalGenerator` que detecta senales de trading aplicando la metodologia 
 - `_is_valid_buy_breakout(weekly_all, idx)` - Valida criterios de ruptura (resistencia, base, volumen)
 - `_compute_mrs(weekly_all, idx)` - Calcula Mansfield RS para un punto concreto
 - `_market_is_bullish(week_date)` - Comprueba si SPY esta en tendencia alcista
-- `generate_signals_for_all_stocks(weeks_back=10)` - Genera senales para todas las acciones
+- `generate_signals_for_all_stocks(weeks_back=1)` - Genera senales para todas las acciones (solo la semana mas reciente)
 - `get_unnotified_signals(days=14)` - Senales pendientes de notificar (ultimos 14 dias)
 - `mark_signals_as_notified(signal_ids)` - Marca como notificadas
 
@@ -508,7 +519,7 @@ Diseno responsive con grid layout y tarjetas.
 **Que hace (3 fases):**
 1. **Fase 1 - Agregacion:** Convierte datos diarios en semanales, calcula MA30 y su pendiente
 2. **Fase 2 - Analisis:** Detecta la etapa Weinstein de cada accion
-3. **Fase 3 - Senales:** Genera senales BUY/SELL por cambios de etapa
+3. **Fase 3 - Senales:** Genera senales BUY/SELL del ultimo viernes unicamente (`weeks_back=1`). Esto evita crear senales con fechas retroactivas de semanas anteriores
 
 **Log:** `/var/log/stanweinstein/weekly_process.log`
 
@@ -532,8 +543,10 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 | `init_historical.py` | Carga 2 anos de datos historicos para todas las acciones |
 | `init_weekly_aggregation.py` | Agrega todo el historico diario a semanal |
 | `analyze_initial.py` | Detecta etapas para todo el historico |
-| `load_stocks_from_csv.py` | Carga lista de acciones desde fichero CSV |
+| `load_stocks_from_csv.py` | Carga lista de acciones desde fichero CSV (formato: `Nombre;Ticker;Pais`) |
 | `load_missing_historical.py` | Carga datos faltantes para acciones sin historico |
+| `find_european_stocks.py` | Busca acciones europeas con mayor volumen (FTSE 100, DAX 40, CAC 40, AEX, IBEX 35, FTSE MIB, SMI, OMX30) y genera un CSV listo para importar con `load_stocks_from_csv.py` |
+| `cleanup_backdated_signals.py` | Elimina senales con signal_date retroactivo generadas por error |
 
 **Orden de ejecucion para puesta en marcha:**
 1. Crear la base de datos con `database_schema.sql`
