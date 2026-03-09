@@ -71,6 +71,8 @@ class DataCollector:
             '.DE': ':XETRA',    # Frankfurt
             '.MI': ':MIL',      # Milan
             '.AS': ':AMS',      # Amsterdam
+            '.SW': ':SIX',      # Suiza
+            '.ST': ':STO',      # Suecia (OMX Stockholm)
         }
         
         for yahoo_suffix, td_suffix in mapping.items():
@@ -92,6 +94,8 @@ class DataCollector:
             ':XETRA': '.DE',
             ':MIL': '.MI',
             ':AMS': '.AS',
+            ':SIX': '.SW',
+            ':STO': '.ST',
         }
         
         for td_suffix, yahoo_suffix in mapping.items():
