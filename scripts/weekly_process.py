@@ -70,8 +70,8 @@ def main():
         logger.info("\nFASE 3: Generación de señales...")
         generator = SignalGenerator(db)
         
-        # Generar señales para las últimas 10 semanas
-        result_signals = generator.generate_signals_for_all_stocks(weeks_back=10)
+        # Generar señales únicamente para el último viernes
+        result_signals = generator.generate_signals_for_all_stocks(weeks_back=1)
         
         logger.info(f"✓ Señales: {result_signals['total_signals']} señales generadas para {result_signals['stocks_with_signals']} acciones")
         
