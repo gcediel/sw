@@ -38,7 +38,7 @@ async function loadStats() {
 
 async function loadStocks() {
     try {
-        let url = `${BASE_PATH}/api/stocks?limit=500`;
+        let url = `${BASE_PATH}/api/stocks?limit=2000`;
         if (currentStage !== 'all') {
             url += `&stage=${currentStage}`;
         }
