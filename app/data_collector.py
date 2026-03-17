@@ -20,9 +20,11 @@ from app.config import (
 # Importar fuentes de datos
 try:
     from twelvedata import TDClient
+    from twelvedata.exceptions import TwelveDataError
     TWELVEDATA_AVAILABLE = True
 except ImportError:
     TWELVEDATA_AVAILABLE = False
+    TwelveDataError = Exception
     logging.warning("twelvedata no disponible, instalar con: pip install twelvedata")
 
 try:
@@ -48,6 +50,7 @@ class DataCollector:
         
         # Inicializar clientes
         self.td_client = None
+        self.td_limit_reached = False  # True cuando se agotan los créditos de TwelveData
         if TWELVEDATA_AVAILABLE and TWELVEDATA_API_KEY:
             try:
                 self.td_client = TDClient(apikey=TWELVEDATA_API_KEY)
@@ -120,11 +123,15 @@ class DataCollector:
     
     def download_with_twelvedata(self, ticker: str, start_date: str, end_date: Optional[str] = None) -> Optional[Dict]:
         """Descargar datos usando Twelve Data API"""
-        
+
         if not self.td_client:
             logger.debug("Twelve Data no disponible")
             return None
-        
+
+        if self.td_limit_reached:
+            logger.debug(f"Twelve Data: límite de créditos agotado, saltando a yfinance para {ticker}")
+            return None
+
         try:
             # Normalizar ticker para Twelve Data
             td_ticker = self._normalize_ticker_for_twelvedata(ticker)
@@ -186,6 +193,14 @@ class DataCollector:
                 'exchange': exchange
             }
             
+        except TwelveDataError as e:
+            msg = str(e).lower()
+            if any(k in msg for k in ('credit', 'limit', 'quota', 'too many', '429')):
+                self.td_limit_reached = True
+                logger.warning(f"⚠ Twelve Data: límite de créditos alcanzado — cambiando a yfinance para el resto de la sesión ({e})")
+            else:
+                logger.debug(f"Twelve Data falló para {ticker}: {e}")
+            return None
         except Exception as e:
             logger.debug(f"Twelve Data falló para {ticker}: {e}")
             return None
