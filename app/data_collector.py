@@ -2,6 +2,7 @@
 Recolector de datos del mercado usando múltiples fuentes
 Soporta: Twelve Data (principal), yfinance (fallback)
 """
+import re
 import time
 import logging
 from datetime import datetime, timedelta
@@ -84,9 +85,18 @@ class DataCollector:
     
     def _normalize_ticker_for_yfinance(self, ticker: str) -> str:
         """
-        Convertir ticker de formato Twelve Data a Yahoo
-        (inverso del anterior, por si se usa como fallback)
+        Convertir ticker al formato que espera yfinance.
+
+        1. Convierte sufijos TwelveData → Yahoo (por si llega en ese formato)
+        2. Para mercados donde la clase de acción se separa con punto en la BD
+           pero yfinance espera guión, aplica la conversión:
+               ATCO.A.ST  → ATCO-A.ST
+               HEXA.B.ST  → HEXA-B.ST
+               NDA.SE.ST  → NDA-SE.ST
+           Patrón general: TICKER.CLASE.SUFIJO → TICKER-CLASE.SUFIJO
+           (aplica a .ST; extensible a otros mercados si fuera necesario)
         """
+        # Paso 1: sufijo de bolsa TwelveData → Yahoo
         mapping = {
             ':BME': '.MC',
             ':LSE': '.L',
@@ -97,11 +107,15 @@ class DataCollector:
             ':SIX': '.SW',
             ':STO': '.ST',
         }
-        
         for td_suffix, yahoo_suffix in mapping.items():
             if ticker.endswith(td_suffix):
-                return ticker.replace(td_suffix, yahoo_suffix)
-        
+                ticker = ticker.replace(td_suffix, yahoo_suffix)
+                break
+
+        # Paso 2: clase de acción con punto → guión para mercados que lo requieren
+        # Ejemplo: ATCO.A.ST → ATCO-A.ST  (yfinance usa guión, no punto)
+        ticker = re.sub(r'\.([A-Z]{1,3})\.(ST)$', r'-\1.\2', ticker)
+
         return ticker
     
     def download_with_twelvedata(self, ticker: str, start_date: str, end_date: Optional[str] = None) -> Optional[Dict]:
