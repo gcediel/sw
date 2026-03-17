@@ -1,5 +1,34 @@
 # Changelog - Sistema Weinstein
 
+## [0.5.0] - 2026-03-17
+
+### ✨ Nuevas Funcionalidades
+
+#### Senales SHORT y COVER — Operativa en Corto (metodologia Weinstein)
+
+Implementacion completa del sistema de senales para posiciones cortas, espejo exacto del sistema de largos con los mismos umbrales.
+
+**Nueva senal SHORT (entrada en corto):**
+- El precio rompe por debajo del minimo de las ultimas 30 semanas con al menos 1% de margen
+- MA30 con pendiente negativa en la semana de ruptura
+- Techo solido previo (Stage 3): MA30 plana en ≥ 75% de las ultimas 16 semanas
+- Volumen de ruptura ≥ 1.5× la media del techo (confirmacion de capitulacion)
+- Filtro de mercado: SPY debe estar bajista (no en tendencia alcista)
+- Filtro MRS: la accion debe rezagarse respecto al SPY (MRS < 0)
+
+**Nueva senal COVER (cierre de corto):**
+- Generada cuando la etapa cambia de 4 → 1 (recuperacion confirmada)
+- Espejo de la senal SELL para largos
+
+**Cambios tecnicos:**
+- `app/config.py`: nuevos parametros `SHORT_SUPPORT_WEEKS`, `SHORT_MIN_TOP_WEEKS`, `SHORT_MAX_TOP_SLOPE`, `SHORT_MAX_DIST_ENTRY` (mismos valores que los BUY)
+- `app/signals.py`: metodos `_market_is_bearish()`, `_is_valid_short_breakdown()`, `_generate_short_signals()`, y COVER en `_generate_sell_signals()`
+- `app/database.py`: ENUM `signal_type` ampliado a `BUY, SELL, STAGE_CHANGE, SHORT, COVER`
+- `database_schema.sql`: esquema actualizado con el nuevo ENUM
+- BD MariaDB: `ALTER TABLE signals MODIFY COLUMN signal_type ENUM(...)` aplicado
+
+---
+
 ## [0.4.0] - 2026-03-02
 
 ### ✨ Nuevas Funcionalidades

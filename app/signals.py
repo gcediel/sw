@@ -1,7 +1,9 @@
 """
 Generador de señales de trading - Sistema Weinstein
-Señales BUY: cruce de precio sobre MA30 con base sólida previa
-Señales SELL: transición a Etapa 3/4
+Señales BUY:   cruce de precio sobre MA30 con base sólida previa (Stage 1→2)
+Señales SELL:  transición a Etapa 3/4
+Señales SHORT: ruptura bajo soporte con techo sólido previo (Stage 3→4)
+Señales COVER: transición a Etapa 1 desde Stage 4 (cierre corto)
 """
 import logging
 from typing import Optional, List
@@ -12,7 +14,9 @@ from sqlalchemy import and_
 from app.database import Stock, WeeklyData, Signal, SessionLocal
 from app.config import (
     BUY_RESISTANCE_WEEKS, BUY_MIN_BASE_WEEKS, BUY_MAX_BASE_SLOPE,
-    BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS, VOLUME_SPIKE_THRESHOLD
+    BUY_MAX_DIST_ENTRY, MIN_WEEKS_FOR_ANALYSIS, VOLUME_SPIKE_THRESHOLD,
+    SHORT_SUPPORT_WEEKS, SHORT_MIN_TOP_WEEKS, SHORT_MAX_TOP_SLOPE,
+    SHORT_MAX_DIST_ENTRY,
 )
 
 logging.basicConfig(
@@ -246,6 +250,134 @@ class SignalGenerator:
         return signals_created
 
     # ------------------------------------------------------------------
+    # Señales SHORT — Ruptura de soporte con techo sólido (espejo de BUY)
+    # ------------------------------------------------------------------
+
+    def _market_is_bearish(self, week_date) -> bool:
+        """Devuelve True si el mercado (SPY) era bajista en la semana dada."""
+        states = self._load_spy_states()
+        if not states:
+            return True  # sin datos SPY: no filtrar
+
+        best = None
+        for d in sorted(states.keys()):
+            if d <= week_date:
+                best = d
+            else:
+                break
+        # bajista = NOT alcista
+        return not states.get(best, True)
+
+    def _is_valid_short_breakdown(self, weekly_all: list, idx: int) -> bool:
+        """
+        Verifica si la semana `idx` es una ruptura de soporte válida para corto.
+
+        Criterios (espejo de _is_valid_buy_breakout):
+        1. Precio rompe por debajo del mínimo de las últimas SHORT_SUPPORT_WEEKS
+           semanas con al menos 1% de margen (ruptura del soporte del techo)
+        2. MA30 en bajada (slope < 0) en la semana de ruptura
+        3. Precio no demasiado extendido bajo MA30 (<= SHORT_MAX_DIST_ENTRY)
+        4. Últimas SHORT_MIN_TOP_WEEKS semanas: MA30 plana (|slope| <= SHORT_MAX_TOP_SLOPE)
+           en al menos el 75% de las semanas (confirma techo sólido previo)
+        5. Suficiente histórico: idx >= MIN_WEEKS_FOR_ANALYSIS + SHORT_SUPPORT_WEEKS
+        """
+        if idx < MIN_WEEKS_FOR_ANALYSIS + SHORT_SUPPORT_WEEKS:
+            return False
+
+        curr = weekly_all[idx]
+        if not curr.ma30:
+            return False
+
+        curr_close = float(curr.close)
+        curr_ma30  = float(curr.ma30)
+        curr_dist  = (curr_ma30 - curr_close) / curr_ma30  # positivo cuando precio < MA30
+
+        # No demasiado extendido bajo MA30
+        if curr_dist > SHORT_MAX_DIST_ENTRY:
+            return False
+
+        # MA30 debe estar en bajada en la semana de ruptura
+        if not curr.ma30_slope or float(curr.ma30_slope) >= 0:
+            return False
+
+        # Nivel de soporte: mínimo cierre de las últimas SHORT_SUPPORT_WEEKS semanas
+        support_window = weekly_all[idx - SHORT_SUPPORT_WEEKS:idx]
+        support = min(float(w.close) for w in support_window)
+
+        # El precio debe romper por debajo del soporte con al menos 1% de margen
+        if curr_close >= support * 0.99:
+            return False
+
+        # Validar techo: MA30 plana en las últimas SHORT_MIN_TOP_WEEKS semanas
+        top = weekly_all[idx - SHORT_MIN_TOP_WEEKS:idx]
+        slopes_flat = sum(
+            1 for w in top
+            if w.ma30_slope and abs(float(w.ma30_slope)) <= SHORT_MAX_TOP_SLOPE
+        )
+        if slopes_flat < int(SHORT_MIN_TOP_WEEKS * 0.75):
+            return False
+
+        # Volumen: la semana de ruptura debe tener spike de volumen
+        if curr.volume and curr.volume > 0:
+            top_vols = [float(w.volume) for w in top if w.volume and w.volume > 0]
+            if len(top_vols) >= 8:
+                avg_top_vol = sum(top_vols) / len(top_vols)
+                if float(curr.volume) < avg_top_vol * VOLUME_SPIKE_THRESHOLD:
+                    return False
+
+        return True
+
+    def _generate_short_signals(self, stock_id: int, stock_ticker: str,
+                                 weekly_all: list, weeks_back: int) -> int:
+        """
+        Genera señales SHORT para las últimas `weeks_back` semanas de una acción.
+        Si weeks_back=0 se revisa todo el histórico.
+        """
+        if len(weekly_all) < MIN_WEEKS_FOR_ANALYSIS + SHORT_MIN_TOP_WEEKS:
+            return 0
+
+        if weeks_back > 0:
+            start_idx = max(1, len(weekly_all) - weeks_back)
+        else:
+            start_idx = 1
+
+        signals_created = 0
+
+        for i in range(start_idx, len(weekly_all)):
+            if not self._is_valid_short_breakdown(weekly_all, i):
+                continue
+
+            curr = weekly_all[i]
+
+            # Filtro mercado: SPY debe ser bajista para señales cortas
+            if not self._market_is_bearish(curr.week_end_date):
+                logger.debug(f"{stock_ticker}: SHORT descartada {curr.week_end_date} — mercado alcista")
+                continue
+
+            # Filtro MRS: la acción debe estar rezagada respecto al SPY (MRS < 0)
+            mrs = self._compute_mrs(weekly_all, i)
+            if mrs is not None and mrs >= 0:
+                logger.debug(f"{stock_ticker}: SHORT descartada {curr.week_end_date} — MRS positivo ({mrs:.1f})")
+                continue
+
+            change_info = {
+                'stock_id': stock_id,
+                'week_end_date': curr.week_end_date,
+                'stage_from': 3,
+                'stage_to': 4,
+                'price': float(curr.close),
+                'ma30': float(curr.ma30),
+            }
+
+            if self._create_signal_record(change_info, 'SHORT'):
+                dist = (float(curr.ma30) - float(curr.close)) / float(curr.ma30) * 100
+                logger.info(f"✓ {stock_ticker}: SHORT {curr.week_end_date} "
+                            f"(ruptura soporte, dist={dist:.1f}% bajo MA30)")
+                signals_created += 1
+
+        return signals_created
+
+    # ------------------------------------------------------------------
     # Señales SELL — Cambio de etapa a 3/4
     # ------------------------------------------------------------------
 
@@ -280,9 +412,12 @@ class SignalGenerator:
             # SELL: transición a Etapa 4 desde 2 o 3
             if stage_to == 4 and stage_from in [2, 3]:
                 signal_type = 'SELL'
-            # STAGE_CHANGE: cualquier otro cambio relevante
+            # STAGE_CHANGE: Stage 2→3 (techo formándose, aviso para largos)
             elif stage_to == 3 and stage_from == 2:
                 signal_type = 'STAGE_CHANGE'
+            # COVER: Stage 4→1 (recuperación, cierre de cortos)
+            elif stage_to == 1 and stage_from == 4:
+                signal_type = 'COVER'
             else:
                 continue
 
@@ -369,10 +504,11 @@ class SignalGenerator:
             )
         ).order_by(WeeklyData.week_end_date.asc()).all()
 
-        buy_signals  = self._generate_buy_signals(stock_id, ticker, weekly_ma30, weeks_back)
-        sell_signals = self._generate_sell_signals(stock_id, ticker, weekly_stage, weeks_back)
+        buy_signals   = self._generate_buy_signals(stock_id, ticker, weekly_ma30, weeks_back)
+        short_signals = self._generate_short_signals(stock_id, ticker, weekly_ma30, weeks_back)
+        sell_signals  = self._generate_sell_signals(stock_id, ticker, weekly_stage, weeks_back)
 
-        total = buy_signals + sell_signals
+        total = buy_signals + short_signals + sell_signals
         if total > 0:
             try:
                 self.db.commit()
@@ -517,7 +653,7 @@ if __name__ == '__main__':
     recent = generator.get_recent_signals(days=30)
     print(f"Señales de los últimos 30 días: {len(recent)}\n")
 
-    for sig_type in ['BUY', 'SELL', 'STAGE_CHANGE']:
+    for sig_type in ['BUY', 'SELL', 'STAGE_CHANGE', 'SHORT', 'COVER']:
         sigs = generator.get_recent_signals(days=30, signal_type=sig_type)
         print(f"  {sig_type}: {len(sigs)} señales")
 

@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS signals (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     stock_id INT NOT NULL,
     signal_date DATE NOT NULL,
-    signal_type ENUM('BUY', 'SELL', 'STAGE_CHANGE') NOT NULL,
+    signal_type ENUM('BUY', 'SELL', 'STAGE_CHANGE', 'SHORT', 'COVER') NOT NULL,
     stage_from TINYINT,
     stage_to TINYINT,
     price DECIMAL(12,4),

@@ -233,12 +233,22 @@ Indice unico: `(stock_id, week_end_date)`
 | id | BIGINT, PK | Identificador |
 | stock_id | INT, FK | Referencia a stocks |
 | signal_date | DATE | Fecha de la senal |
-| signal_type | ENUM | BUY, SELL, STAGE_CHANGE |
+| signal_type | ENUM | BUY, SELL, STAGE_CHANGE, SHORT, COVER |
 | stage_from | TINYINT | Etapa de origen |
 | stage_to | TINYINT | Etapa de destino |
 | price | DECIMAL(12,4) | Precio en el momento |
 | ma30 | DECIMAL(12,4) | MA30 en el momento |
 | notified | BOOLEAN | Si se ha notificado via Telegram |
+
+**Tipos de senal:**
+
+| Tipo | Descripcion | Etapas |
+|------|-------------|--------|
+| BUY | Ruptura alcista con base solida — entrada en largo | 1 → 2 |
+| SELL | Confirmacion de tendencia bajista — salida de largo | 2/3 → 4 |
+| STAGE_CHANGE | Techo formandose — aviso para largos | 2 → 3 |
+| SHORT | Ruptura bajista con techo solido — entrada en corto | 3 → 4 |
+| COVER | Recuperacion confirmada — cierre de cortos | 4 → 1 |
 
 #### Tabla `positions` - Cartera de operaciones
 
@@ -351,25 +361,38 @@ Etapa 1: (precio cerca o debajo de MA30) Y (pendiente plana o bajando) Y etapa_a
 
 ### 6.5 `app/signals.py` - Generacion de senales
 
-Clase `SignalGenerator` que detecta senales de trading aplicando la metodologia Weinstein completa.
+Clase `SignalGenerator` que detecta senales de trading aplicando la metodologia Weinstein completa, tanto para posiciones largas como cortas.
 
-**Tipos de senal:**
+**Senales de largo (BUY / SELL / STAGE_CHANGE):**
 - **BUY:** Ruptura alcista con confirmacion multiple. Criterios (todos obligatorios):
   1. Precio supera el maximo de las ultimas 30 semanas con al menos 1% de margen (ruptura de resistencia)
   2. MA30 con pendiente positiva en la semana de ruptura
   3. Precio no demasiado extendido sobre la MA30 (≤ 15%)
   4. Base solida previa: MA30 plana en ≥ 75% de las ultimas 16 semanas
-  5. Volumen de ruptura ≥ 1.5× la media de volumen de las semanas de base (confirmacion de volumen)
-  6. Mansfield Relative Strength > 0 (la accion supera al SPY respecto a su propia media de 52 semanas)
-  7. Mercado alcista: SPY en tendencia alcista (precio ≥ MA30 × 0.97 y slope ≥ 0)
-- **SELL:** Etapa 2 → 4 o Etapa 3 → 4 (ruptura bajista)
-- **STAGE_CHANGE:** Transicion Etapa 2 → 3
+  5. Volumen de ruptura ≥ 1.5× la media de volumen de las semanas de base
+  6. Mansfield Relative Strength > 0 (la accion supera al SPY)
+  7. Mercado alcista: SPY con precio ≥ MA30 × 0.97 y slope ≥ 0
+- **SELL:** Etapa 2/3 → 4 (tendencia bajista confirmada)
+- **STAGE_CHANGE:** Etapa 2 → 3 (techo formandose, aviso para largos)
+
+**Senales de corto (SHORT / COVER):**
+- **SHORT:** Ruptura bajista — espejo exacto de BUY. Criterios (todos obligatorios):
+  1. Precio rompe por debajo del minimo de las ultimas 30 semanas con al menos 1% de margen (ruptura de soporte)
+  2. MA30 con pendiente negativa en la semana de ruptura
+  3. Precio no demasiado extendido bajo la MA30 (≤ 15%)
+  4. Techo solido previo: MA30 plana en ≥ 75% de las ultimas 16 semanas (Stage 3)
+  5. Volumen de ruptura ≥ 1.5× la media de volumen del techo
+  6. Mansfield Relative Strength < 0 (la accion rezagada respecto al SPY)
+  7. Mercado bajista: SPY NO en tendencia alcista
+- **COVER:** Etapa 4 → 1 (recuperacion confirmada, cierre de cortos)
 
 **Metodos principales:**
-- `_is_valid_buy_breakout(weekly_all, idx)` - Valida criterios de ruptura (resistencia, base, volumen)
+- `_is_valid_buy_breakout(weekly_all, idx)` - Valida criterios de ruptura alcista
+- `_is_valid_short_breakdown(weekly_all, idx)` - Valida criterios de ruptura bajista (espejo)
 - `_compute_mrs(weekly_all, idx)` - Calcula Mansfield RS para un punto concreto
 - `_market_is_bullish(week_date)` - Comprueba si SPY esta en tendencia alcista
-- `generate_signals_for_all_stocks(weeks_back=1)` - Genera senales para todas las acciones (solo la semana mas reciente)
+- `_market_is_bearish(week_date)` - Comprueba si SPY NO esta en tendencia alcista
+- `generate_signals_for_all_stocks(weeks_back=1)` - Genera senales para todas las acciones
 - `get_unnotified_signals(days=14)` - Senales pendientes de notificar (ultimos 14 dias)
 - `mark_signals_as_notified(signal_ids)` - Marca como notificadas
 
@@ -607,7 +630,12 @@ Estos scripts se ejecutan una sola vez para la puesta en marcha:
 | `BUY_RESISTANCE_WEEKS` | 30 | Semanas para calcular nivel de resistencia (maximos) |
 | `BUY_MIN_BASE_WEEKS` | 16 | Semanas minimas de base previa con MA30 plana |
 | `BUY_MAX_BASE_SLOPE` | 0.008 (0.8%) | Pendiente maxima de MA30 en la base (plana) |
-| `VOLUME_SPIKE_THRESHOLD` | 1.5 (150%) | Volumen minimo de ruptura vs media de la base |
+| `BUY_MAX_DIST_ENTRY` | 0.15 (15%) | Distancia maxima precio/MA30 al entrar en largo |
+| `SHORT_SUPPORT_WEEKS` | 30 | Semanas para calcular nivel de soporte (minimos) |
+| `SHORT_MIN_TOP_WEEKS` | 16 | Semanas minimas de techo previo con MA30 plana |
+| `SHORT_MAX_TOP_SLOPE` | 0.008 (0.8%) | Pendiente maxima de MA30 en el techo (plana) |
+| `SHORT_MAX_DIST_ENTRY` | 0.15 (15%) | Distancia maxima MA30/precio al entrar en corto |
+| `VOLUME_SPIKE_THRESHOLD` | 1.5 (150%) | Volumen minimo de ruptura vs media de la base/techo |
 | `RATE_LIMIT_DELAY` | 8 seg | Pausa entre peticiones API |
 | `MAX_RETRIES` | 3 | Reintentos maximos por peticion |
 | `RETRY_DELAY` | 5 seg | Pausa entre reintentos |

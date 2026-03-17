@@ -117,7 +117,7 @@ class Signal(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     stock_id = Column(Integer, ForeignKey('stocks.id', ondelete='CASCADE'), nullable=False)
     signal_date = Column(Date, nullable=False)
-    signal_type = Column(Enum('BUY', 'SELL', 'STAGE_CHANGE'), nullable=False)
+    signal_type = Column(Enum('BUY', 'SELL', 'STAGE_CHANGE', 'SHORT', 'COVER'), nullable=False)
     stage_from = Column(Integer)
     stage_to = Column(Integer)
     price = Column(DECIMAL(12, 4))
