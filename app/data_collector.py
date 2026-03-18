@@ -119,6 +119,12 @@ class DataCollector:
         # Ejemplo: ATCO.A.ST → ATCO-A.ST  (yfinance usa guión, no punto)
         ticker = re.sub(r'\.([A-Z]{1,3})\.(ST)$', r'-\1.\2', ticker)
 
+        # Paso 3: class shares US sin sufijo de bolsa: BF.B → BF-B, BRK.B → BRK-B
+        # Solo aplica si NO termina en sufijo de bolsa conocido (.L, .MC, .PA, etc.)
+        known_exchange_suffixes = {'.L', '.MC', '.PA', '.DE', '.MI', '.AS', '.SW', '.ST'}
+        if not any(ticker.endswith(s) for s in known_exchange_suffixes):
+            ticker = re.sub(r'\.([A-Z])$', r'-\1', ticker)
+
         return ticker
     
     def download_with_twelvedata(self, ticker: str, start_date: str, end_date: Optional[str] = None) -> Optional[Dict]:
@@ -195,9 +201,14 @@ class DataCollector:
             
         except TwelveDataError as e:
             msg = str(e).lower()
-            if any(k in msg for k in ('credit', 'limit', 'quota', 'too many', '429')):
+            if any(k in msg for k in ('too many', '429')):
+                # Rate limit por minuto: esperar y dejar que el mecanismo de reintentos lo reintente
+                logger.warning(f"⚠ Twelve Data: rate limit por minuto, esperando 60s ({ticker})...")
+                time.sleep(60)
+            elif any(k in msg for k in ('credit', 'limit', 'quota')):
+                # Créditos diarios agotados: bloquear TwelveData para toda la sesión
                 self.td_limit_reached = True
-                logger.warning(f"⚠ Twelve Data: límite de créditos alcanzado — cambiando a yfinance para el resto de la sesión ({e})")
+                logger.warning(f"⚠ Twelve Data: créditos diarios agotados — cambiando a yfinance para el resto de la sesión ({e})")
             else:
                 logger.debug(f"Twelve Data falló para {ticker}: {e}")
             return None
